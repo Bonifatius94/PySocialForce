@@ -9,15 +9,15 @@ from numba import njit
 import logging
 logging.getLogger('numba').setLevel(logging.WARNING)
 
-from pysocialforce.scene import Line2D, Point2D
+from pysocialforce.scene import Line2D, Point2D, PedState
 from pysocialforce.potentials import PedPedPotential, PedSpacePotential
 from pysocialforce.fieldofview import FieldOfView
 from pysocialforce.utils import Config, stateutils, logger
+from pysocialforce.simulator import Simulator
 
 
 def camel_to_snake(camel_case_string):
     """Convert CamelCase to snake_case"""
-
     return re.sub(r"(?<!^)(?=[A-Z])", "_", camel_case_string).lower()
 
 
@@ -26,17 +26,17 @@ class Force(ABC):
 
     def __init__(self):
         super().__init__()
-        self.scene = None
-        self.peds = None
+        self.scene: Simulator = None
+        self.peds: PedState = None
         self.factor = 1.0
         self.config = Config()
 
-    def init(self, scene, config):
+    def init(self, scene: Simulator, config: Config):
         """Load config and scene"""
         # load the sub field corresponding to the force name from global confgi file
         self.config = config.sub_config(camel_to_snake(type(self).__name__))
         if self.config:
-            self.factor = self.config("factor", 1.0)
+            self.factor: float = self.config("factor", 1.0)
 
         self.scene = scene
         self.peds = self.scene.peds
@@ -264,8 +264,8 @@ class DesiredForce(Force):
     """
 
     def _get_force(self):
-        relexation_time = self.config("relaxation_time", 0.5)
-        goal_threshold = self.config("goal_threshold", 0.1)
+        relexation_time: float = self.config("relaxation_time", 0.5)
+        goal_threshold: float = self.config("goal_threshold", 0.1)
         pos: np.ndarray = self.peds.pos()
         vel: np.ndarray = self.peds.vel()
         goal: np.ndarray = self.peds.goal()
@@ -305,7 +305,7 @@ class SocialForce(Force):
     """
 
     def _get_force(self):
-        lambda_importance = self.config("lambda_importance", 2.0)
+        lambda_importance: float = self.config("lambda_importance", 2.0)
         gamma = self.config("gamma", 0.35)
         n = self.config("n", 2)
         n_prime = self.config("n_prime", 3)
