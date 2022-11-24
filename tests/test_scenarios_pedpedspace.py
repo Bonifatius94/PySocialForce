@@ -1,9 +1,13 @@
+import os
 import pytest
 import numpy as np
 import pysocialforce as psf
 from pysocialforce.utils.plot import SceneVisualizer
 
 OUTPUT_DIR = "images/"
+
+if not os.path.exists(OUTPUT_DIR):
+    os.mkdir(OUTPUT_DIR)
 
 
 def test_separator():
