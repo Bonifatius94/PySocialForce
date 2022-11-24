@@ -1,7 +1,7 @@
 """Calculate forces for individuals and groups"""
 import re
 from abc import ABC, abstractmethod
-from typing import Tuple
+from typing import Tuple, List, Protocol
 
 import numpy as np
 from numba import njit
@@ -13,7 +13,16 @@ from pysocialforce.scene import Line2D, Point2D, PedState
 from pysocialforce.potentials import PedPedPotential, PedSpacePotential
 from pysocialforce.fieldofview import FieldOfView
 from pysocialforce.utils import Config, stateutils, logger
-from pysocialforce.simulator import Simulator
+
+
+class GameEntitiesProvider(Protocol):
+    def get_obstacles(self) -> List[np.ndarray]:
+        raise NotImplementedError()
+
+    @property
+    def peds(self) -> PedState:
+        raise NotImplementedError()
+
 
 
 def camel_to_snake(camel_case_string):
@@ -26,12 +35,12 @@ class Force(ABC):
 
     def __init__(self):
         super().__init__()
-        self.scene: Simulator = None
+        self.scene: GameEntitiesProvider = None
         self.peds: PedState = None
         self.factor = 1.0
         self.config = Config()
 
-    def init(self, scene: Simulator, config: Config):
+    def init(self, scene: GameEntitiesProvider, config: Config):
         """Load config and scene"""
         # load the sub field corresponding to the force name from global confgi file
         self.config = config.sub_config(camel_to_snake(type(self).__name__))
@@ -127,6 +136,9 @@ class GroupCoherenceForceAlt(Force):
         for group in self.peds.groups:
             threshold = (len(group) - 1) / 2
             member_pos = self.peds.pos()[group, :]
+            if len(member_pos) == 0:
+                continue
+
             com = stateutils.centroid(member_pos)
             force_vec = com - member_pos
             norms = stateutils.speeds(force_vec)
