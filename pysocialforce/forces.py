@@ -19,6 +19,9 @@ class GameEntitiesProvider(Protocol):
     def get_obstacles(self) -> List[np.ndarray]:
         raise NotImplementedError()
 
+    def get_raw_obstacles(self) -> np.ndarray:
+        raise NotImplementedError()
+
     @property
     def peds(self) -> PedState:
         raise NotImplementedError()
@@ -245,29 +248,6 @@ class GroupGazeForceAlt(Force):
         return forces * self.factor
 
 
-# class DesiredForce(Force):
-#     """Calculates the force between this agent and the next assigned waypoint.
-#     If the waypoint has been reached, the next waypoint in the list will be
-#     selected.
-#     :return: the calculated force
-#     """
-
-#     def _get_force(self):
-#         relexation_time = self.config("relaxation_time", 0.5)
-#         goal_threshold = self.config("goal_threshold", 0.1)
-#         pos = self.peds.pos()
-#         vel = self.peds.vel()
-#         goal = self.peds.goal()
-#         direction, dist = stateutils.normalize(goal - pos)
-#         force = np.zeros((self.peds.size(), 2))
-#         force[dist > goal_threshold] = (
-#             direction * self.peds.max_speeds.reshape((-1, 1)) - vel.reshape((-1, 2))
-#         )[dist > goal_threshold, :]
-#         force[dist <= goal_threshold] = -1.0 * vel[dist <= goal_threshold]
-#         force /= relexation_time
-#         return force * self.factor
-
-
 class DesiredForce(Force):
     """Calculates the force between this agent and the next assigned waypoint.
     If the waypoint has been reached, the next waypoint in the list will be
@@ -277,32 +257,56 @@ class DesiredForce(Force):
 
     def _get_force(self):
         relexation_time: float = self.config("relaxation_time", 0.5)
-        goal_threshold: float = self.config("goal_threshold", 0.1)
-        pos: np.ndarray = self.peds.pos()
-        vel: np.ndarray = self.peds.vel()
-        goal: np.ndarray = self.peds.goal()
-        max_speeds: np.ndarray = self.peds.max_speeds
-
+        goal_threshold = self.config("goal_threshold", 0.1)
+        pos = self.peds.pos()
+        vel = self.peds.vel()
+        goal = self.peds.goal()
+        direction, dist = stateutils.normalize(goal - pos)
         force = np.zeros((self.peds.size(), 2))
-        desired_force(force, relexation_time, goal_threshold, pos, vel, goal, max_speeds)
+        force[dist > goal_threshold] = (
+            direction * self.peds.max_speeds.reshape((-1, 1)) - vel.reshape((-1, 2))
+        )[dist > goal_threshold, :]
+        force[dist <= goal_threshold] = -1.0 * vel[dist <= goal_threshold]
+        force /= relexation_time
         return force * self.factor
 
 
-@njit(fastmath=True)
-def desired_force(out_forces: np.ndarray, relexation_time: float, goal_threshold: float,
-                  pos: np.ndarray, vel: np.ndarray, goal: np.ndarray, max_speeds: np.ndarray):
-    # TODO: figure out why this code allocates 2 MB/s
-    for i in range(pos.shape[0]):
-        vec_x = goal[i, 0] - pos[i, 0]
-        vec_y = goal[i, 1] - pos[i, 1]
-        dist = (vec_x**2 + vec_y**2)**0.5
-        if dist > goal_threshold and dist > 0:
-            unit_vec_x = vec_x / dist
-            unit_vec_y = vec_y / dist
-            out_forces[i, 0] = unit_vec_x * max_speeds[i] - vel[i, 0] / relexation_time
-            out_forces[i, 1] = unit_vec_y * max_speeds[i] - vel[i, 1] / relexation_time
-        else:
-            out_forces[i] = -1.0 * vel[i] / relexation_time
+# class DesiredForce(Force):
+#     """Calculates the force between this agent and the next assigned waypoint.
+#     If the waypoint has been reached, the next waypoint in the list will be
+#     selected.
+#     :return: the calculated force
+#     """
+
+#     def _get_force(self):
+#         relexation_time: float = self.config("relaxation_time", 0.5)
+#         goal_threshold: float = self.config("goal_threshold", 0.1)
+#         pos: np.ndarray = self.peds.pos()
+#         vel: np.ndarray = self.peds.vel()
+#         goal: np.ndarray = self.peds.goal()
+#         max_speeds: np.ndarray = self.peds.max_speeds
+
+#         force = np.zeros((self.peds.size(), 2))
+#         desired_force(force, relexation_time, goal_threshold, pos, vel, goal, max_speeds)
+#         return force * self.factor
+
+
+# # @njit
+# def desired_force(out_forces: np.ndarray, relexation_time: float, goal_threshold: float,
+#                   pos: np.ndarray, vel: np.ndarray, goal: np.ndarray, max_speeds: np.ndarray):
+#     # TODO: figure out why this code allocates 2 MB/s
+#     for i in range(pos.shape[0]):
+#         vec_x = goal[i, 0] - pos[i, 0]
+#         vec_y = goal[i, 1] - pos[i, 1]
+#         dist = (vec_x**2 + vec_y**2)**0.5
+#         if dist > goal_threshold and dist > 0:
+#             unit_vec_x = vec_x / dist
+#             unit_vec_y = vec_y / dist
+#             out_forces[i, 0] = unit_vec_x * max_speeds[i] - vel[i, 0] / relexation_time
+#             out_forces[i, 1] = unit_vec_y * max_speeds[i] - vel[i, 1] / relexation_time
+#         else:
+#             out_forces[i, 0] = -1.0 * vel[i, 0] / relexation_time
+#             out_forces[i, 1] = -1.0 * vel[i, 1] / relexation_time
 
 
 class SocialForce(Force):
