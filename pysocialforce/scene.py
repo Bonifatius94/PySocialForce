@@ -83,9 +83,7 @@ class PedState:
         next_state = self.state
         next_state[:, 0:2] += desired_velocity * self.step_width
         next_state[:, 2:4] = desired_velocity
-        next_groups = self.groups
-        if groups is not None:
-            next_groups = groups
+        next_groups = groups if groups is not None else self.groups
         self.update(next_state, next_groups)
 
     # def initial_speeds(self):
