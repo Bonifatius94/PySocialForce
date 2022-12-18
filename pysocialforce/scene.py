@@ -10,12 +10,13 @@ from pysocialforce.utils import stateutils
 
 Line2D = Tuple[float, float, float, float]
 Point2D = Tuple[float, float]
+Group = List[int]
 
 
 class PedState:
     """Tracks the state of pedstrains and social groups"""
 
-    def __init__(self, state, groups, config):
+    def __init__(self, state: np.ndarray, groups: List[Group], config):
         self.default_tau = config("tau", 0.5)
         self.step_width = config("step_width", 0.4)
         self.agent_radius = config("agent_radius", 0.35)
@@ -23,23 +24,14 @@ class PedState:
 
         self.max_speeds = None
         self.initial_speeds = None
-
-        self.ped_states = []
-        self.group_states = []
-
         self.update(state, groups)
 
-    def update(self, state, groups):
+    def update(self, state: np.ndarray, groups: List[List[int]]):
         self.state = state
         self.groups = groups
 
-    @property
-    def state(self):
-        return self._state
-
-    @state.setter
-    def state(self, state):
-        tau = self.default_tau * np.ones(state.shape[0])
+    def _update_state(self, state: np.ndarray):
+        tau = np.full((state.shape[0]), self.default_tau)
         if state.shape[1] < 7:
             self._state = np.concatenate((state, np.expand_dims(tau, -1)), axis=-1)
         else:
@@ -47,10 +39,17 @@ class PedState:
         if self.initial_speeds is None:
             self.initial_speeds = self.speeds()
         self.max_speeds = self.max_speed_multiplier * self.initial_speeds
-        self.ped_states.append(self._state.copy())
+
+    @property
+    def state(self) -> np.ndarray:
+        return self._state
+
+    @state.setter
+    def state(self, state: np.ndarray):
+        self._update_state(state)
 
     def get_states(self):
-        return np.stack(self.ped_states), self.group_states
+        return np.array([self.state]), [self.groups]
 
     def size(self) -> int:
         return self.state.shape[0]
@@ -86,9 +85,6 @@ class PedState:
         next_groups = groups if groups is not None else self.groups
         self.update(next_state, next_groups)
 
-    # def initial_speeds(self):
-    #     return stateutils.speeds(self.ped_states[0])
-
     def desired_directions(self):
         return stateutils.desired_directions(self.state)[0]
 
@@ -110,13 +106,9 @@ class PedState:
             self._groups = []
         else:
             self._groups = groups
-        self.group_states.append(self._groups.copy())
 
     def has_group(self):
         return self.groups is not None
-
-    # def get_group_by_idx(self, index: int) -> np.ndarray:
-    #     return self.state[self.groups[index], :]
 
     def which_group(self, index: int) -> int:
         """find group index from ped index"""
@@ -130,7 +122,7 @@ class PedState:
 class EnvState:
     """State of the environment obstacles"""
     _orig_obstacles: List[Line2D]
-    _resolution: int=10
+    _resolution: float=10
     _obstacles_linspace: List[np.ndarray] = field(init=False)
     _obstacles_raw: np.ndarray = field(init=False)
 
