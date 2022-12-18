@@ -4,85 +4,51 @@
 
 See Helbing and Molnár 1998 and Moussaïd et al. 2010
 """
-from pysocialforce.utils import DefaultConfig
+from typing import List, Tuple
+from warnings import warn
+
+import numpy as np
+
+from pysocialforce.utils import DefaultConfig, Config
 from pysocialforce.scene import PedState, EnvState
 from pysocialforce import forces
 
 
+Line2D = Tuple[float, float, float, float]
+
+
 class Simulator:
-    """Simulate social force model.
-
-    ...
-
-    Attributes
-    ----------
-    state : np.ndarray [n, 6] or [n, 7]
-       Each entry represents a pedestrian state, (x, y, v_x, v_y, d_x, d_y, [tau])
-    obstacles : np.ndarray
-        Environmental obstacles
-    groups : List of Lists
-        Group members are denoted by their indices in the state
-    config : Dict
-        Loaded from a toml config file
-    max_speeds : np.ndarray
-        Maximum speed of pedestrians
-    forces : List
-        Forces to factor in during navigation
-
-    Methods
-    ---------
-    capped_velocity(desired_velcity)
-        Scale down a desired velocity to its capped speed
-    step()
-        Make one step
-    """
-
-    def __init__(self, state, groups=None, obstacles=None, config_file=None):
-        # TODO: where is max_speeds declared?!
-
-        self.config = DefaultConfig()
-        if config_file:
-            self.config.load_config(config_file)
+    def __init__(self, forces: List[forces.Force],
+                 state: np.ndarray, groups: List[List[int]]=None,
+                 obstacles: List[Line2D]=None, config: Config=DefaultConfig()):
+        self.config = config
         # TODO: load obstacles from config
         self.scene_config = self.config.sub_config("scene")
         # initiate obstacles
-        self.env = EnvState(obstacles, self.config("resolution", 10.0))
+        resolution: float = self.config("resolution", 10.0)
+        self.env = EnvState(obstacles, resolution)
 
         # initiate agents
         self.peds = PedState(state, groups, self.config)
 
-        # construct forces
-        self.forces = self.make_forces(self.config)
-
-    def make_forces(self, force_configs):
-        """Construct forces"""
-        force_list = [
-            forces.DesiredForce(),
-            forces.SocialForce(),
-            forces.ObstacleForce(),
-            # forces.PedRepulsiveForce(),
-            # forces.SpaceRepulsiveForce(),
-        ]
-        group_forces = [
-            forces.GroupCoherenceForceAlt(),
-            forces.GroupRepulsiveForce(),
-            forces.GroupGazeForceAlt(),
-        ]
-        if self.scene_config("enable_group"):
-            force_list += group_forces
-
         # initiate forces
-        for force in force_list:
-            force.init(self, force_configs)
-
-        return force_list
+        self.forces = forces
+        for force in self.forces:
+            force.init(self, self.config)
 
     def compute_forces(self):
         """compute forces"""
         return sum(map(lambda x: x.get_force(), self.forces))
 
+    @property
+    def current_state(self) -> Tuple[np.ndarray, List[List[int]]]:
+        return self.peds.state, self.peds.groups
+
     def get_states(self):
         """Expose whole state"""
+        warn('This function retrieves the whole state history \
+              instead of just the most recent state',
+              DeprecationWarning, stacklevel=2)
         return self.peds.get_states()
 
     def get_length(self):
