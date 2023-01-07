@@ -4,12 +4,15 @@
 
 See Helbing and Molnár 1998 and Moussaïd et al. 2010
 """
-from typing import List, Tuple
+
+from __future__ import annotations
+from typing import List, Tuple, Callable
 from warnings import warn
 
 import numpy as np
 
-from pysocialforce.utils import DefaultConfig, Config
+import pysocialforce as pysf
+from pysocialforce.utils.config import SimulatorConfig
 from pysocialforce.scene import PedState, EnvState
 from pysocialforce import forces
 
@@ -17,28 +20,37 @@ from pysocialforce import forces
 Line2D = Tuple[float, float, float, float]
 
 
+def make_forces(sim: pysf.Simulator, config: pysf.utils.SimulatorConfig) -> List[pysf.forces.Force]:
+    """Initialize forces required for simulation."""
+    enable_group = config.scene_config.enable_group
+    force_list = [
+        pysf.forces.DesiredForce(config.desired_force_config, sim.peds),
+        pysf.forces.SocialForce(config.social_force_config, sim.peds),
+        pysf.forces.ObstacleForce(config.obstacle_force_config, sim),
+    ]
+    group_forces = [
+        pysf.forces.GroupCoherenceForceAlt(config.group_coherence_force_config, sim.peds),
+        pysf.forces.GroupRepulsiveForce(config.group_repulsive_force_config, sim.peds),
+        pysf.forces.GroupGazeForceAlt(config.group_gaze_force_config, sim.peds),
+    ]
+    return force_list + group_forces if enable_group else force_list
+
+
 class Simulator:
-    def __init__(self, forces: List[forces.Force],
-                 state: np.ndarray, groups: List[List[int]]=None,
-                 obstacles: List[Line2D]=None, config: Config=DefaultConfig()):
+    def __init__(self, state: np.ndarray,
+                 groups: List[List[int]]=None,
+                 obstacles: List[Line2D]=None,
+                 config: SimulatorConfig=SimulatorConfig(),
+                 make_forces: Callable[[Simulator, SimulatorConfig], List[forces.Force]]=make_forces):
         self.config = config
-        # TODO: load obstacles from config
-        self.scene_config = self.config.sub_config("scene")
-        # initiate obstacles
-        resolution: float = self.config("resolution", 10.0)
+        resolution = self.config.scene_config.resolution
         self.env = EnvState(obstacles, resolution)
-
-        # initiate agents
-        self.peds = PedState(state, groups, self.config)
-
-        # initiate forces
-        self.forces = forces
-        for force in self.forces:
-            force.init(self, self.config)
+        self.peds = PedState(state, groups, self.config.scene_config)
+        self.forces = make_forces(self, config)
 
     def compute_forces(self):
         """compute forces"""
-        return sum(map(lambda x: x.get_force(), self.forces))
+        return sum(map(lambda x: x(), self.forces))
 
     @property
     def current_state(self) -> Tuple[np.ndarray, List[List[int]]]:

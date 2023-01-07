@@ -1,110 +1,127 @@
 """Config"""
-from pathlib import Path
-from typing import Dict
+from dataclasses import dataclass, fields
 import toml
 
 
-class Config:
-    """Config loading and updating
-    Attribute
-    -------------
-    config: dict
-
-    Methods
-    -------------
-    from_dict: update from a dict
-    load_config: update from file
-    sub_config: return a sub dict wrapped in Config()
-    """
-
-    def __init__(self, config=None) -> None:
-        self.config = {}
-        if config:
-            self.config = config
-
-    def from_dict(self, config: Dict) -> None:
-        """Update from dict"""
-        self.config.update(config)
-
-    def load_config(self, filename: str) -> None:
-        """update from file"""
-        user_config = toml.load(filename)
-        self.from_dict(user_config)
-
-    def sub_config(self, field_name: str) -> "Config":
-        """return a sub dict wrapped in Config()"""
-        sub_dict = self.config.get(field_name)
-        if isinstance(sub_dict, dict):
-            return Config(sub_dict)
-        return Config()
-
-    def __call__(self, entry: str, default=None):
-        return self.config.get(entry) or default
+@dataclass
+class SceneConfig:
+    enable_group: bool = True
+    agent_radius: float = 0.35
+    step_width: float = 1.0
+    max_speed_multiplier: float = 1.3
+    tau: float = 0.5
+    resolution: float = 10
 
 
-class DefaultConfig(Config):
-    """Default configs"""
+@dataclass
+class GoalAttractiveForceConfig:
+    factor: float=1.0
 
-    CONFIG = """
-    title = "Social Force Default Config File"
 
-    [scene]
-    enable_group = true
-    agent_radius = 0.35
-    step_width = 1.0
-    max_speed_multiplier = 1.3
-    tau = 0.5
-    resolution = 10
+@dataclass
+class PedRepulsiveForceConfig:
+    factor: float = 1.5
+    v0: float = 2.1
+    sigma: float = 0.3
+    fov_phi: float = 100.0
+    fov_factor: float = 0.5 # out of view factor
 
-    [goal_attractive_force]
-    factor = 1
 
-    [ped_repulsive_force]
-    factor = 1.5
-    v0 = 2.1
-    sigma = 0.3
-    # fov params
-    fov_phi = 100.0
-    fov_factor = 0.5 # out of view factor
+@dataclass
+class SpaceRepulsiveForceConfig:
+    factor: float = 1
+    u0: float = 10
+    r: float = 0.2
 
-    [space_repulsive_force]
-    factor = 1
-    u0 = 10
-    r = 0.2
 
-    [group_coherence_force]
-    factor = 3.0
+@dataclass
+class GroupCoherenceForceConfig:
+    factor: float = 3.0
 
-    [group_repulsive_force]
-    factor = 1.0
-    threshold = 0.55
 
-    [group_gaze_force]
-    factor = 4.0
-    # fov params
-    fov_phi = 90.0
+@dataclass
+class GroupReplusiveForceConfig:
+    factor: float = 1.0
+    threshold: float = 0.55
 
-    [desired_force]
-    factor = 1.0
-    relaxation_time = 0.5
-    goal_threshold = 0.2
 
-    [social_force]
-    factor = 5.1
-    lambda_importance = 2.0
-    gamma = 0.35
-    n = 2
-    n_prime = 3
+@dataclass
+class GroupGazeForceConfig:
+    factor: float = 4.0
+    fov_phi: float = 90.0
 
-    [obstacle_force]
-    factor = 10
-    sigma = 0
-    threshold = -0.57
 
-    [along_wall_force]
-    """
+@dataclass
+class DesiredForceConfig:
+    factor: float = 1.0
+    relaxation_time: float = 0.5
+    goal_threshold: float = 0.2
 
-    def __init__(self):
-        # config_dir = Path(__file__).resolve().parent.parent.joinpath("/config")
-        # super().__init__(toml.load(config_dir.joinpath(default_config)))
-        super().__init__(toml.loads(self.CONFIG))
+
+@dataclass
+class SocialForceConfig:
+    factor: float = 5.1
+    lambda_importance: float = 2.0
+    gamma: float = 0.35
+    n: int = 2
+    n_prime: int = 3
+
+
+@dataclass
+class ObstacleForceConfig:
+    factor: float = 10.0
+    sigma: float = 0.0
+    threshold: float = -0.57
+
+
+class DCUnpack:
+    """Helper class to initialize dataclass instances from a dictionary.
+    See https://stackoverflow.com/questions/68417319/initialize-python-dataclass-from-dictionary"""
+    class_field_cache = {}
+
+    @classmethod
+    def new(cls, class_to_instantiate, arg_dict):
+        if class_to_instantiate not in cls.class_field_cache:
+            cls.class_field_cache[class_to_instantiate] = \
+                {f.name for f in fields(class_to_instantiate) if f.init}
+
+        field_set = cls.class_field_cache[class_to_instantiate]
+        filtered_arg_dict = {k : v for k, v in arg_dict.items() if k in field_set}
+        return class_to_instantiate(**filtered_arg_dict)
+
+
+@dataclass
+class SimulatorConfig:
+    scene_config: SceneConfig = SceneConfig()
+    goal_attractive_force_config: GoalAttractiveForceConfig = GoalAttractiveForceConfig()
+    ped_repulsive_force_config: PedRepulsiveForceConfig = PedRepulsiveForceConfig()
+    space_repulsive_force_config: SpaceRepulsiveForceConfig = SpaceRepulsiveForceConfig()
+    group_coherence_force_config: GroupCoherenceForceConfig = GroupCoherenceForceConfig()
+    group_repulsive_force_config: GroupReplusiveForceConfig = GroupReplusiveForceConfig()
+    group_gaze_force_config: GroupGazeForceConfig = GroupGazeForceConfig()
+    desired_force_config: DesiredForceConfig = DesiredForceConfig()
+    social_force_config: SocialForceConfig = SocialForceConfig()
+    obstacle_force_config: ObstacleForceConfig = ObstacleForceConfig()
+
+    def load_from_toml_file(self, config_file: str):
+        data = toml.load(config_file)
+        if 'scene' in data:
+            self.scene_config = DCUnpack.new(SceneConfig, data['scene'])
+        if 'goal_attractive_force' in data:
+            self.goal_attractive_force_config = DCUnpack.new(GoalAttractiveForceConfig, data['goal_attractive_force'])
+        if 'ped_repulsive_force' in data:
+            self.ped_repulsive_force_config = DCUnpack.new(PedRepulsiveForceConfig, data['ped_repulsive_force'])
+        if 'space_repulsive_force' in data:
+            self.space_repulsive_force_config = DCUnpack.new(SpaceRepulsiveForceConfig, data['space_repulsive_force'])
+        if 'group_coherence_force' in data:
+            self.group_coherence_force_config = DCUnpack.new(GroupCoherenceForceConfig, data['group_coherence_force'])
+        if 'group_repulsive_force' in data:
+            self.group_repulsive_force_config = DCUnpack.new(GroupReplusiveForceConfig, data['group_repulsive_force'])
+        if 'group_gaze_force' in data:
+            self.group_gaze_force_config = DCUnpack.new(GroupGazeForceConfig, data['group_gaze_force'])
+        if 'desired_force' in data:
+            self.desired_force_config = DCUnpack.new(DesiredForceConfig, data['desired_force'])
+        if 'social_force' in data:
+            self.social_force_config = DCUnpack.new(SocialForceConfig, data['social_force'])
+        if 'obstacle_force' in data:
+            self.obstacle_force_config = DCUnpack.new(ObstacleForceConfig, data['obstacle_force'])
