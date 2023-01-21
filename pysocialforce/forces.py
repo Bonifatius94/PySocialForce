@@ -302,13 +302,21 @@ class SocialForce:
         gamma = self.config.gamma
         n = self.config.n
         n_prime = self.config.n_prime
+        activation_threshold = 50.0
+        ped_positions = self.peds.pos()
+        ped_velocities = self.peds.vel()
 
-        pos_diff = stateutils.each_diff(self.peds.pos())  # n*(n-1)x2 other - self
-        diff_direction, diff_length = stateutils.normalize(pos_diff)
-        vel_diff = -1.0 * stateutils.each_diff(self.peds.vel())  # n*(n-1)x2 self - other
+        # TODO: add distance filter to achieve speedup
+        #       e.g. put a square around pedestrian
+
+        ped_mask_2d = filter_dist(ped_positions, activation_threshold)
+        ped_mask = ped_mask_2d.reshape(-1)
+        pos_diff = stateutils.each_diff(ped_positions)  # n*(n-1)x2 other - self
+        diff_direction, diff_length = stateutils.normalize(pos_diff[ped_mask])
+        vel_diff = -1.0 * stateutils.each_diff(ped_velocities)  # n*(n-1)x2 self - other
 
         # compute interaction direction t_ij
-        interaction_vec = lambda_importance * vel_diff + diff_direction
+        interaction_vec = lambda_importance * vel_diff[ped_mask] + diff_direction
         interaction_direction, interaction_length = stateutils.normalize(interaction_vec)
 
         # compute angle theta (between interaction and position difference vector)
@@ -327,9 +335,42 @@ class SocialForce:
             interaction_direction
         )
 
-        force = force_velocity + force_angle  # n*(n-1) x 2
-        force = np.sum(force.reshape((self.peds.size(), -1, 2)), axis=1)
-        return force * self.config.factor
+        force_ext = force_velocity + force_angle
+        forces = np.zeros((ped_positions.shape[0], 2))
+        unroll_forces(forces, ped_mask_2d, force_ext)
+        return forces * self.config.factor
+
+
+@njit(fastmath=True)
+def unroll_forces(out_forces: np.ndarray, ped_mask_2d: np.ndarray, force_ext: np.ndarray):
+    offset = 0
+    for i in range(out_forces.shape[0]):
+        slice_len = len(np.where(ped_mask_2d[i])[0]) * 2
+        if slice_len > 0:
+            f_slice = force_ext[offset:offset+slice_len]
+            out_forces[i, :] = np.sum(f_slice.reshape(-1, 2), axis=0)
+        offset += slice_len
+
+
+@njit(fastmath=True)
+def filter_dist(ped_positions: np.ndarray, threshold: float) -> np.ndarray:
+    threshold_sq = threshold**2
+    num_peds = ped_positions.shape[0]
+    ped_mask = np.zeros((num_peds, num_peds-1), dtype=np.bool8)
+    for ped_i in range(ped_positions.shape[0]):
+        if ped_i == 0:
+            dist_sq = np.sum((ped_positions[1:] - ped_positions[ped_i])**2, axis=1)
+            ped_mask[ped_i] = dist_sq <= threshold_sq
+        elif ped_i == num_peds-1:
+            dist_sq = np.sum((ped_positions[:-1] - ped_positions[ped_i])**2, axis=1)
+            ped_mask[ped_i] = dist_sq <= threshold_sq
+        else:
+            dist_sq_lower = np.sum((ped_positions[:ped_i] - ped_positions[ped_i])**2, axis=1)
+            dist_sq_upper = np.sum((ped_positions[ped_i+1:] - ped_positions[ped_i])**2, axis=1)
+            ped_mask[ped_i, :ped_i] = dist_sq_lower <= threshold_sq
+            ped_mask[ped_i, ped_i:] = dist_sq_upper <= threshold_sq
+
+    return ped_mask
 
 
 class ObstacleForce:
@@ -441,6 +482,11 @@ def potential_field_force(obst_dist: float, dx_obst_dist: float,
 @njit(fastmath=True)
 def euclid_dist(x1: float, y1: float, x2: float, y2: float) -> float:
     return pow(pow(x2 - x1, 2) + pow(y2 - y1, 2), 0.5)
+
+
+@njit(fastmath=True)
+def euclid_dist_sq(x1: float, y1: float, x2: float, y2: float) -> float:
+    return pow(x2 - x1, 2) + pow(y2 - y1, 2)
 
 
 @njit(fastmath=True)
