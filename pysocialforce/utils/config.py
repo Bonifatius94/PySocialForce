@@ -65,6 +65,7 @@ class SocialForceConfig:
     gamma: float = 0.35
     n: int = 2
     n_prime: int = 3
+    activation_threshold: float = 20.0
 
 
 @dataclass
