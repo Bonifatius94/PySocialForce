@@ -8,22 +8,6 @@ import logging
 logging.getLogger('numba').setLevel(logging.WARNING)
 
 
-# @jit
-# def normalize(array_in):
-#     """nx2 or mxnx2"""
-#     if len(array_in.shape) == 2:
-#         vec, fac = normalize_array(array_in)
-#         return vec, fac
-#     factors = []
-#     vectors = []
-#     for m in array_in:
-#         vec, fac = normalize_array(m)
-#         vectors.append(vec)
-#         factors.append(fac)
-
-#     return np.array(vectors), np.array(factors)
-
-
 @njit
 def vec_len_2d(vec_x: float, vec_y: float) -> float:
     return (vec_x**2 + vec_y**2)**0.5
@@ -37,18 +21,6 @@ def vector_angles(vecs: np.ndarray) -> np.ndarray:
     """
     ang = np.arctan2(vecs[:, 1], vecs[:, 0])  # atan2(y, x)
     return ang
-
-
-@njit
-def left_normal(vecs: np.ndarray) -> np.ndarray:
-    vecs = np.fliplr(vecs) * np.array([-1.0, 1.0])
-    return vecs
-
-
-@njit
-def right_normal(vecs: np.ndarray) -> np.ndarray:
-    vecs = np.fliplr(vecs) * np.array([1.0, -1.0])
-    return vecs
 
 
 @njit
