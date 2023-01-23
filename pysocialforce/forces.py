@@ -1,5 +1,6 @@
 """Calculate forces for individuals and groups"""
 import re
+from math import atan2, exp
 from typing import Tuple, List, Protocol, Callable
 
 import numpy as np
@@ -224,35 +225,44 @@ class GroupGazeForceAlt:
 
     def __call__(self):
         forces = np.zeros((self.peds.size(), 2))
-        directions, dist = stateutils.desired_directions(self.peds.state)
-        if self.peds.has_group():
-            for group in self.peds.groups:
-                group_size = len(group)
-                # 1-agent groups don't need to compute this
-                if group_size <= 1:
-                    continue
-                member_pos = self.peds.pos()[group, :]
-                member_directions = directions[group, :]
-                member_dist = dist[group]
-                # use center of mass without the current agent
-                relative_com = np.array([
-                    stateutils.centroid(member_pos[np.arange(group_size) != i, :2]) - member_pos[i, :]
-                    for i in range(group_size)])
 
-                com_directions, com_dist = stateutils.normalize(relative_com)
-                # angle between walking direction and center of mass
-                element_prod = np.array(
-                    [np.dot(d, c) for d, c in zip(member_directions, com_directions)]
-                )
-                force = (
-                    com_dist.reshape(-1, 1)
-                    * element_prod.reshape(-1, 1)
-                    / member_dist.reshape(-1, 1)
-                    * member_directions
-                )
-                forces[group, :] += force
+        if not self.peds.has_group():
+            return forces
+
+        ped_positions = self.peds.pos()
+        directions, dist = stateutils.desired_directions(self.peds.state)
+
+        for group in self.peds.groups:
+            group_size = len(group)
+            if group_size <= 1:
+                continue
+            forces[group, :] = group_gaze_force(
+                ped_positions[group, :], directions[group, :], dist[group])
 
         return forces * self.config.factor
+
+
+@njit(fastmath=True)
+def group_gaze_force(
+        member_pos: np.ndarray, member_directions: np.ndarray,
+        member_dist: np.ndarray) -> np.ndarray:
+    group_size = member_pos.shape[0]
+    out_forces = np.zeros((group_size, 2))
+    for i in range(group_size):
+        # use center of mass without the current agent
+        other_member_pos = member_pos[np.arange(group_size) != i, :2]
+        mass_center_without_ped = stateutils.centroid(other_member_pos)
+        relative_com_x = mass_center_without_ped[0] - member_pos[i, 0]
+        relative_com_y = mass_center_without_ped[1] - member_pos[i, 1]
+        com_dir, com_dist = norm_vec((relative_com_x, relative_com_y))
+        # angle between walking direction and center of mass
+        ped_dir_x, ped_dir_y = member_directions[i]
+        element_prod = ped_dir_x * com_dir[0] + ped_dir_y * com_dir[1]
+        factor = com_dist * element_prod / member_dist[i]
+        force_x, force_y = ped_dir_x * factor, ped_dir_y * factor
+        out_forces[i, 0] = force_x
+        out_forces[i, 1] = force_y
+    return out_forces
 
 
 class DesiredForce:
@@ -298,15 +308,11 @@ class SocialForce:
         self.peds = peds
 
     def __call__(self):
-        lambda_importance = self.config.lambda_importance
-        gamma = self.config.gamma
-        n = self.config.n
-        n_prime = self.config.n_prime
         ped_positions = self.peds.pos()
         ped_velocities = self.peds.vel()
         forces = social_force(
             ped_positions, ped_velocities, self.config.activation_threshold,
-            n, n_prime, lambda_importance, gamma)
+            self.config.n, self.config.n_prime, self.config.lambda_importance, self.config.gamma)
         return forces * self.config.factor
 
 
@@ -316,38 +322,71 @@ def social_force(
         n: int, n_prime: int, lambda_importance: float, gamma: float) -> np.ndarray:
 
     num_peds = ped_positions.shape[0]
+    activation_threshold_sq = activation_threshold**2
     forces = np.zeros((num_peds, 2))
+
     for ped_i in range(num_peds):
-        ped_pos, ped_vel = ped_positions[ped_i], ped_velocities[ped_i]
-        dist_sq = np.sum((ped_positions - ped_pos)**2, axis=1)
-        ped_mask = dist_sq <= activation_threshold**2
+        all_pos_diffs = ped_positions[ped_i] - ped_positions
+        pos_dists_sq = np.sum(all_pos_diffs**2, axis=1)
+        ped_mask = pos_dists_sq <= activation_threshold_sq
         ped_mask[ped_i] = False
-        ped_mask = np.where(ped_mask)
-        other_ped_pos = ped_positions[ped_mask]
-        other_ped_vel = ped_velocities[ped_mask]
+        other_ped_ids = np.where(ped_mask)[0]
 
-        pos_diff = ped_pos - other_ped_pos
-        diff_direction, diff_length = stateutils.normalize(pos_diff)
-        vel_diff = -1.0 * (ped_vel - other_ped_vel)
-
-        # compute interaction direction t_ij
-        interaction_vec = lambda_importance * vel_diff + diff_direction
-        interaction_direction, interaction_length = stateutils.normalize(interaction_vec)
-
-        # compute angle theta (between interaction and position difference vector)
-        theta = stateutils.vector_angles(interaction_direction) \
-            - stateutils.vector_angles(diff_direction)
-        # compute model parameter B = gamma * ||D||
-        B = gamma * interaction_length
-
-        force_velocity_amount = np.exp(-1.0 * diff_length / B - np.square(n_prime * B * theta))
-        force_angle_amount = -np.sign(theta) * np.exp(-1.0 * diff_length / B - np.square(n * B * theta))
-        force_velocity = force_velocity_amount.reshape(-1, 1) * interaction_direction
-        force_angle = force_angle_amount.reshape(-1, 1) \
-            * stateutils.left_normal(interaction_direction)
-        forces[ped_i, :] = np.sum(force_velocity + force_angle, axis=0)
+        pos_diffs = all_pos_diffs[other_ped_ids]
+        vel_diffs = ped_velocities[other_ped_ids] - ped_velocities[ped_i]
+        force_x, force_y = social_force_single_ped(
+            pos_diffs, vel_diffs, n, n_prime, lambda_importance, gamma)
+        forces[ped_i, 0] = force_x
+        forces[ped_i, 1] = force_y
 
     return forces
+
+
+@njit(fastmath=True)
+def social_force_single_ped(
+        pos_diffs: np.ndarray, vel_diffs: np.ndarray,
+        n: int, n_prime: int, lambda_importance: float, gamma: float) -> Point2D:
+    force_sum_x, force_sum_y = 0.0, 0.0
+    for i in range(pos_diffs.shape[0]):
+        force_x, force_y = social_force_ped_ped(
+            pos_diffs[i], vel_diffs[i], n, n_prime, lambda_importance, gamma)
+        force_sum_x += force_x
+        force_sum_y += force_y
+    return force_sum_x, force_sum_y
+
+
+@njit(fastmath=True)
+def social_force_ped_ped(
+        pos_diff: Point2D, vel_diff: Point2D, n: int, n_prime: int,
+        lambda_importance: float, gamma: float) -> Point2D:
+
+    pos_diff_x, pos_diff_y = pos_diff
+    vel_diff_x, vel_diff_y = vel_diff
+    (diff_dir_x, diff_dir_y), diff_length = norm_vec((pos_diff_x, pos_diff_y))
+    interaction_vec_x = lambda_importance * vel_diff_x + diff_dir_x
+    interaction_vec_y = lambda_importance * vel_diff_y + diff_dir_y
+    interaction_dir, interaction_length = norm_vec((interaction_vec_x, interaction_vec_y))
+    interaction_dir_x, interaction_dir_y = interaction_dir
+
+    theta = atan2(interaction_dir[1], interaction_dir[0]) - atan2(diff_dir_y, diff_dir_x)
+    theta_sign = 1 if theta >= 0 else -1
+    B = gamma * interaction_length + 1e-8
+
+    force_velocity_amount = exp(-1.0 * diff_length / B - (n_prime * B * theta)**2)
+    force_angle_amount = -theta_sign * exp(-1.0 * diff_length / B - (n * B * theta)**2)
+    force_velocity_x = interaction_dir_x * force_velocity_amount
+    force_velocity_y = interaction_dir_y * force_velocity_amount
+    force_angle_x = -interaction_dir_y * force_angle_amount
+    force_angle_y = interaction_dir_x * force_angle_amount
+    return force_velocity_x + force_angle_x, force_velocity_y + force_angle_y
+
+
+@njit(fastmath=True)
+def norm_vec(vec: Point2D) -> Tuple[Point2D, float]:
+    if vec[0] == 0 and vec[1] == 0:
+        return vec, 0
+    vec_len = (vec[0]**2 + vec[1]**2)**0.5
+    return (vec[0] / vec_len, vec[1] / vec_len), vec_len
 
 
 class ObstacleForce:
