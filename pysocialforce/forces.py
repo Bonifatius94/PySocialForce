@@ -163,16 +163,20 @@ class GroupRepulsiveForce:
     def __call__(self):
         threshold = self.config.threshold
         forces = np.zeros((self.peds.size(), 2))
-        if self.peds.has_group():
-            for group in self.peds.groups:
-                if group:
-                    size = len(group)
-                    member_pos = self.peds.pos()[group, :]
-                    diff = stateutils.each_diff(member_pos)  # others - self
-                    _, norms = stateutils.normalize(diff)
-                    diff[norms > threshold, :] = 0
-                    # forces[group, :] += np.sum(diff, axis=0)
-                    forces[group, :] += np.sum(diff.reshape((size, -1, 2)), axis=1)
+        if not self.peds.has_group():
+            return forces
+
+        for group in self.peds.groups:
+            if not group:
+                continue
+
+            size = len(group)
+            member_pos = self.peds.pos()[group, :]
+            diff = stateutils.each_diff(member_pos)  # others - self
+            _, norms = stateutils.normalize(diff)
+            diff[norms > threshold, :] = 0
+            # forces[group, :] += np.sum(diff, axis=0)
+            forces[group, :] += np.sum(diff.reshape((size, -1, 2)), axis=1)
 
         return forces * self.config.factor
 
