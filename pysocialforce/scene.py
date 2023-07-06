@@ -1,4 +1,6 @@
-"""This module tracks the state odf scene and scen elements like pedestrians, groups and obstacles"""
+"""This module tracks the state of scene and scene elements
+like pedestrians, groups and obstacles"""
+
 from math import cos, sin, atan2, pi
 from typing import List, Tuple
 from dataclasses import dataclass, field

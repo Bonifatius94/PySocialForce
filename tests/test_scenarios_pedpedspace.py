@@ -2,7 +2,7 @@ import os
 import pytest
 import numpy as np
 import pysocialforce as psf
-from pysocialforce.utils.plot import SceneVisualizer
+from pysocialforce.utils.plot import SceneVisualizer, SimRecording
 
 OUTPUT_DIR = "images/"
 
@@ -13,10 +13,13 @@ if not os.path.exists(OUTPUT_DIR):
 def test_separator():
     initial_state = np.array([[-10.0, -0.0, 1.0, 0.0, 10.0, 0.0],])
     obstacles = [(-1, 4, -1, 4)]
-    s = psf.Simulator(initial_state, obstacles=obstacles)
-    s.step(80)
 
-    with SceneVisualizer(s, OUTPUT_DIR + "separator") as sv:
+    rec = SimRecording()
+    s = psf.Simulator(initial_state, obstacles=obstacles, on_step=rec.append_frame)
+    s.step(80)
+    rec.static_obstacles = s.get_obstacles()
+
+    with SceneVisualizer(rec, OUTPUT_DIR + "separator") as sv:
         sv.animate()
 
 
@@ -36,9 +39,13 @@ def test_gate():
         ]
     )
     obstacles = [(0, 0, -10, -1.0), (0, 0, 1.0, 10)]
-    s = psf.Simulator(initial_state, obstacles=obstacles)
+
+    rec = SimRecording()
+    s = psf.Simulator(initial_state, obstacles=obstacles, on_step=rec.append_frame)
     s.step(100)
-    with SceneVisualizer(s, OUTPUT_DIR + "gate") as sv:
+    rec.static_obstacles = s.get_obstacles()
+
+    with SceneVisualizer(rec, OUTPUT_DIR + "gate") as sv:
         sv.animate()
 
 
@@ -62,9 +69,13 @@ def test_walkway(n):
 
     obstacles = [(-25, 25, 5, 5), (-25, 25, -5, -5)]
     agent_colors = [(1, 0, 0)] * n + [(0, 0, 1)] * n
-    s = psf.Simulator(initial_state, obstacles=obstacles)
+
+    rec = SimRecording()
+    s = psf.Simulator(initial_state, obstacles=obstacles, on_step=rec.append_frame)
     s.step(150)
-    with SceneVisualizer(s, OUTPUT_DIR + f"walkway_{n}", agent_colors=agent_colors) as sv:
+    rec.static_obstacles = s.get_obstacles()
+
+    with SceneVisualizer(rec, OUTPUT_DIR + f"walkway_{n}", agent_colors=agent_colors) as sv:
         sv.ax.set_xlim(-30, 30)
         sv.ax.set_ylim(-20, 20)
         sv.animate()

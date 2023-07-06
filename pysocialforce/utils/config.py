@@ -14,27 +14,6 @@ class SceneConfig:
 
 
 @dataclass
-class GoalAttractiveForceConfig:
-    factor: float=1.0
-
-
-@dataclass
-class PedRepulsiveForceConfig:
-    factor: float = 1.5
-    v0: float = 2.1
-    sigma: float = 0.3
-    fov_phi: float = 100.0
-    fov_factor: float = 0.5 # out of view factor
-
-
-@dataclass
-class SpaceRepulsiveForceConfig:
-    factor: float = 1
-    u0: float = 10
-    r: float = 0.2
-
-
-@dataclass
 class GroupCoherenceForceConfig:
     factor: float = 3.0
 
@@ -94,9 +73,6 @@ class DCUnpack:
 @dataclass
 class SimulatorConfig:
     scene_config: SceneConfig = SceneConfig()
-    goal_attractive_force_config: GoalAttractiveForceConfig = GoalAttractiveForceConfig()
-    ped_repulsive_force_config: PedRepulsiveForceConfig = PedRepulsiveForceConfig()
-    space_repulsive_force_config: SpaceRepulsiveForceConfig = SpaceRepulsiveForceConfig()
     group_coherence_force_config: GroupCoherenceForceConfig = GroupCoherenceForceConfig()
     group_repulsive_force_config: GroupReplusiveForceConfig = GroupReplusiveForceConfig()
     group_gaze_force_config: GroupGazeForceConfig = GroupGazeForceConfig()
@@ -108,12 +84,6 @@ class SimulatorConfig:
         data = toml.load(config_file)
         if 'scene' in data:
             self.scene_config = DCUnpack.new(SceneConfig, data['scene'])
-        if 'goal_attractive_force' in data:
-            self.goal_attractive_force_config = DCUnpack.new(GoalAttractiveForceConfig, data['goal_attractive_force'])
-        if 'ped_repulsive_force' in data:
-            self.ped_repulsive_force_config = DCUnpack.new(PedRepulsiveForceConfig, data['ped_repulsive_force'])
-        if 'space_repulsive_force' in data:
-            self.space_repulsive_force_config = DCUnpack.new(SpaceRepulsiveForceConfig, data['space_repulsive_force'])
         if 'group_coherence_force' in data:
             self.group_coherence_force_config = DCUnpack.new(GroupCoherenceForceConfig, data['group_coherence_force'])
         if 'group_repulsive_force' in data:

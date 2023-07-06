@@ -1,6 +1,9 @@
 """Utility functions for plots and animations."""
 
+from typing import List, Tuple
+from dataclasses import dataclass, field
 from contextlib import contextmanager
+from copy import deepcopy
 
 import numpy as np
 
@@ -15,6 +18,34 @@ except ImportError:
 
 from .logging import logger
 from .stateutils import minmax
+
+PedsState = np.ndarray
+GroupsState = List[List[int]]
+Obstacle = Tuple[float, float, float, float]
+
+
+@dataclass
+class SimRecording:
+    ped_states: List[PedsState] = field(default_factory=list)
+    groups: List[GroupsState] = field(default_factory=list)
+    static_obstacles: List[Obstacle] = field(default_factory=list)
+
+    @property
+    def ped_states_np(self) -> np.ndarray:
+        return np.array(self.ped_states)
+
+    @property
+    def frames(self) -> int:
+        return len(self.ped_states)
+
+    @property
+    def num_peds(self) -> int:
+        return self.ped_states[0].shape[0] if len(self.ped_states) > 0 else 0
+
+    def append_frame(self, state: Tuple[PedsState, GroupsState]):
+        ped_states, groups = state
+        self.ped_states.append(deepcopy(ped_states))
+        self.groups.append(deepcopy(groups))
 
 
 @contextmanager
@@ -63,18 +94,18 @@ class SceneVisualizer:
     """Context for social nav vidualization"""
 
     def __init__(
-        self, scene, output=None, writer="imagemagick", cmap="viridis", agent_colors=None, **kwargs
-    ):
-        self.scene = scene
-        self.states, self.group_states = self.scene.get_states()
+            self, recording: SimRecording, output=None,
+            writer="imagemagick", cmap="viridis", agent_colors=None, **kwargs):
+        self.states = recording.ped_states
+        self.group_states = recording.groups
+        self.obstacles = recording.static_obstacles
         self.cmap = cmap
         self.agent_colors = agent_colors
-        self.frames = self.scene.get_length()
+        self.frames = recording.frames
         self.output = output
         self.writer = writer
 
         self.fig, self.ax = plt.subplots(**kwargs)
-
         self.ani = None
 
         self.group_actors = None
@@ -98,7 +129,7 @@ class SceneVisualizer:
         self.plot_obstacles()
         groups = self.group_states[0]  # static group for now
         if not groups:
-            for ped in range(self.scene.peds.size()):
+            for ped in range(self.states.shape[1]):
                 x = self.states[:, ped, 0]
                 y = self.states[:, ped, 1]
                 self.ax.plot(x, y, "-o", label=f"ped {ped}", markersize=2.5)
@@ -176,8 +207,7 @@ class SceneVisualizer:
         :param step: index of state, default is the latest
         :return: list of patches
         """
-        states, _ = self.scene.get_states()
-        current_state = states[step]
+        current_state = self.states[step]
         # radius = 0.2 + np.linalg.norm(current_state[:, 2:4], axis=-1) / 2.0 * 0.3
         radius = [0.2] * current_state.shape[0]
         if self.human_actors:
@@ -204,9 +234,8 @@ class SceneVisualizer:
         :param step: index of state, default is the latest
         :return: list of patches
         """
-        states, group_states = self.scene.get_states()
-        current_state = states[step]
-        current_groups = group_states[step]
+        current_state = self.states[step]
+        current_groups = self.group_states[step]
         if self.group_actors:  # update patches, else create
             points = [current_state[g, :2] for g in current_groups]
             for i, p in enumerate(points):
@@ -217,7 +246,7 @@ class SceneVisualizer:
         self.group_collection.set_paths(self.group_actors)
 
     def plot_obstacles(self):
-        for s in self.scene.get_obstacles():
+        for s in self.obstacles:
             self.ax.plot(s[:, 0], s[:, 1], "-o", color="black", markersize=2.5)
 
     def animation_init(self):

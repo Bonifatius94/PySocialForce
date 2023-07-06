@@ -1,7 +1,7 @@
 import os
 import numpy as np
 import pysocialforce as psf
-from pysocialforce.utils.plot import SceneVisualizer
+from pysocialforce.utils.plot import SceneVisualizer, SimRecording
 
 OUTPUT_DIR = "images/"
 
@@ -22,8 +22,10 @@ def test_group_crossing():
     )
     groups = [[0, 1], [2, 3, 4]]
     obs = [[4, 4, 2, 5]]
-    s = psf.Simulator(initial_state, groups=groups, obstacles=obs)
+    rec = SimRecording()
+    s = psf.Simulator(initial_state, groups=groups, obstacles=obs, on_step=rec.append_frame)
     s.step(80)
+    rec.static_obstacles = s.get_obstacles()
 
-    with SceneVisualizer(s, OUTPUT_DIR + "group_crossing") as sv:
+    with SceneVisualizer(rec, OUTPUT_DIR + "group_crossing") as sv:
         sv.animate()

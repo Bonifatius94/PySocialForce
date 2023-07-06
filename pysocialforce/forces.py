@@ -10,13 +10,10 @@ import logging
 logging.getLogger('numba').setLevel(logging.WARNING)
 
 from pysocialforce.scene import Line2D, Point2D, PedState
-from pysocialforce.potentials import PedPedPotential, PedSpacePotential
-from pysocialforce.fieldofview import FieldOfView
 from pysocialforce.utils import stateutils, logger
 from pysocialforce.utils.config import \
-    DesiredForceConfig, GoalAttractiveForceConfig, GroupCoherenceForceConfig, \
-    GroupGazeForceConfig, GroupReplusiveForceConfig, ObstacleForceConfig, \
-    PedRepulsiveForceConfig, SocialForceConfig, SpaceRepulsiveForceConfig
+    DesiredForceConfig, SocialForceConfig, ObstacleForceConfig, \
+    GroupCoherenceForceConfig, GroupGazeForceConfig, GroupReplusiveForceConfig
 
 
 Force = Callable[[], np.ndarray]
@@ -49,224 +46,6 @@ class DebuggableForce:
     def camel_to_snake(camel_case_string: str) -> str:
         """Convert CamelCase to snake_case"""
         return re.sub(r"(?<!^)(?=[A-Z])", "_", camel_case_string).lower()
-
-
-class GoalAttractiveForce:
-    """accelerate to desired velocity"""
-
-    def __init__(self, config: GoalAttractiveForceConfig, peds: PedState):
-        self.peds = peds
-        self.factor = config.factor
-
-    def __call__(self) -> float:
-        F0 = (
-            1.0
-            / self.peds.tau()
-            * (
-                np.expand_dims(self.peds.initial_speeds, -1) * self.peds.desired_directions()
-                - self.peds.vel()
-            )
-        )
-        return F0 * self.factor
-
-
-class PedRepulsiveForce:
-    """Ped to ped repulsive force"""
-
-    def __init__(self, config: PedRepulsiveForceConfig, peds: PedState):
-        self.config = config
-        self.peds = peds
-
-    def __call__(self) -> float:
-        potential_func = PedPedPotential(self.peds.step_width, self.config.v0, self.config.sigma)
-        f_ab = -1.0 * potential_func.grad_r_ab(self.peds.state)
-
-        fov = FieldOfView(phi=self.config.fov_phi, out_of_view_factor=self.config.fov_factor,)
-        w = np.expand_dims(fov(self.peds.desired_directions(), -f_ab), -1)
-        F_ab = w * f_ab
-        return np.sum(F_ab, axis=1) * self.config.factor
-
-
-class SpaceRepulsiveForce:
-    """obstacles to ped repulsive force"""
-
-    def __init__(self, config: SpaceRepulsiveForceConfig,
-                 get_obstacles: Callable[[], List[Point2D]], peds: PedState):
-        self.config = config
-        self.peds = peds
-        self.get_obstacles = get_obstacles
-
-    def __call__(self) -> float:
-        obstacles = self.get_obstacles()
-        if obstacles is None:
-            F_aB = np.zeros((self.peds.size(), 0, 2))
-        else:
-            potential_func = PedSpacePotential(obstacles, u0=self.config.u0, r=self.config.r)
-            F_aB = -1.0 * potential_func.grad_r_aB(self.peds.state)
-        return np.sum(F_aB, axis=1) * self.config.factor
-
-
-class GroupCoherenceForce:
-    """Group coherence force, paper version"""
-
-    def __init__(self, config: GroupCoherenceForceConfig, peds: PedState):
-        self.peds = peds
-        self.config = config
-
-    def __call__(self):
-        forces = np.zeros((self.peds.size(), 2))
-        if self.peds.has_group():
-            for group in self.peds.groups:
-                threshold = (len(group) - 1) / 2
-                member_pos = self.peds.pos()[group, :]
-                com = stateutils.centroid(member_pos)
-                force_vec = com - member_pos
-                vectors, norms = stateutils.normalize(force_vec)
-                vectors[norms < threshold] = [0, 0]
-                forces[group, :] += vectors
-        return forces * self.config.factor
-
-
-class GroupCoherenceForceAlt:
-    """ Alternative group coherence force as specified in pedsim_ros"""
-
-    def __init__(self, config: GroupCoherenceForceConfig, peds: PedState):
-        self.peds = peds
-        self.config = config
-
-    def __call__(self):
-        forces = np.zeros((self.peds.size(), 2))
-        if not self.peds.has_group():
-            return forces
-
-        for group in self.peds.groups:
-            threshold = (len(group) - 1) / 2
-            member_pos = self.peds.pos()[group, :]
-            if len(member_pos) == 0:
-                continue
-
-            com = stateutils.centroid(member_pos)
-            force_vec = com - member_pos
-            norms = stateutils.speeds(force_vec)
-            softened_factor = (np.tanh(norms - threshold) + 1) / 2
-            forces[group, :] += (force_vec.T * softened_factor).T
-        return forces * self.config.factor
-
-
-class GroupRepulsiveForce:
-    """Group repulsive force"""
-
-    def __init__(self, config: GroupReplusiveForceConfig, peds: PedState):
-        self.config = config
-        self.peds = peds
-
-    def __call__(self):
-        threshold = self.config.threshold
-        forces = np.zeros((self.peds.size(), 2))
-        if not self.peds.has_group():
-            return forces
-
-        for group in self.peds.groups:
-            if not group:
-                continue
-
-            size = len(group)
-            member_pos = self.peds.pos()[group, :]
-            diff = stateutils.each_diff(member_pos)  # others - self
-            _, norms = stateutils.normalize(diff)
-            diff[norms > threshold, :] = 0
-            # forces[group, :] += np.sum(diff, axis=0)
-            forces[group, :] += np.sum(diff.reshape((size, -1, 2)), axis=1)
-
-        return forces * self.config.factor
-
-
-class GroupGazeForce:
-    """Group gaze force"""
-
-    def __init__(self, config: GroupGazeForceConfig, peds: PedState):
-        self.config = config
-        self.peds = peds
-
-    def __call__(self):
-        forces = np.zeros((self.peds.size(), 2))
-        vision_angle = self.config.fov_phi
-        directions, _ = stateutils.desired_directions(self.peds.state)
-        if self.peds.has_group():
-            for group in self.peds.groups:
-                group_size = len(group)
-                # 1-agent groups don't need to compute this
-                if group_size <= 1:
-                    continue
-                member_pos = self.peds.pos()[group, :]
-                member_directions = directions[group, :]
-                # use center of mass without the current agent
-                relative_com = np.array([
-                    stateutils.centroid(member_pos[np.arange(group_size) != i, :2]) - member_pos[i, :]
-                    for i in range(group_size)])
-
-                com_directions, _ = stateutils.normalize(relative_com)
-                # angle between walking direction and center of mass
-                element_prod = np.array(
-                    [np.dot(d, c) for d, c in zip(member_directions, com_directions)]
-                )
-                com_angles = np.degrees(np.arccos(element_prod))
-                rotation = np.radians(
-                    [a - vision_angle if a > vision_angle else 0.0 for a in com_angles]
-                )
-                force = -rotation.reshape(-1, 1) * member_directions
-                forces[group, :] += force
-
-        return forces * self.config.factor
-
-
-class GroupGazeForceAlt:
-    """Group gaze force"""
-
-    def __init__(self, config: GroupGazeForceConfig, peds: PedState):
-        self.config = config
-        self.peds = peds
-
-    def __call__(self):
-        forces = np.zeros((self.peds.size(), 2))
-
-        if not self.peds.has_group():
-            return forces
-
-        ped_positions = self.peds.pos()
-        directions, dist = stateutils.desired_directions(self.peds.state)
-
-        for group in self.peds.groups:
-            group_size = len(group)
-            if group_size <= 1:
-                continue
-            forces[group, :] = group_gaze_force(
-                ped_positions[group, :], directions[group, :], dist[group])
-
-        return forces * self.config.factor
-
-
-@njit(fastmath=True)
-def group_gaze_force(
-        member_pos: np.ndarray, member_directions: np.ndarray,
-        member_dist: np.ndarray) -> np.ndarray:
-    group_size = member_pos.shape[0]
-    out_forces = np.zeros((group_size, 2))
-    for i in range(group_size):
-        # use center of mass without the current agent
-        other_member_pos = member_pos[np.arange(group_size) != i, :2]
-        mass_center_without_ped = stateutils.centroid(other_member_pos)
-        relative_com_x = mass_center_without_ped[0] - member_pos[i, 0]
-        relative_com_y = mass_center_without_ped[1] - member_pos[i, 1]
-        com_dir, com_dist = norm_vec((relative_com_x, relative_com_y))
-        # angle between walking direction and center of mass
-        ped_dir_x, ped_dir_y = member_directions[i]
-        element_prod = ped_dir_x * com_dir[0] + ped_dir_y * com_dir[1]
-        factor = com_dist * element_prod / member_dist[i]
-        force_x, force_y = ped_dir_x * factor, ped_dir_y * factor
-        out_forces[i, 0] = force_x
-        out_forces[i, 1] = force_y
-    return out_forces
 
 
 class DesiredForce:
@@ -448,6 +227,7 @@ def obstacle_force(obstacle: Line2D, ortho_vec: Point2D,
     2) compute the repulsive force, i.e. the partial derivative by x/y of the point
     regarding the virtual potential field denoted as 1 / (2 * dist(line_seg, point)^2)
     3) return the force as separate x/y components
+
     There are 3 cases to be considered for computing the distance:
     1) obstacle is just a point instead of a line segment
     2) orthogonal projection hits within the obstacle's line segment
@@ -515,3 +295,105 @@ def der_euclid_dist(p1: Point2D, p2: Point2D, distance: float) -> Tuple[float, f
     dx1_dist = (p1[0] - p2[0]) / distance
     dy1_dist = (p1[1] - p2[1]) / distance
     return dx1_dist, dy1_dist
+
+
+class GroupCoherenceForceAlt:
+    """ Alternative group coherence force as specified in pedsim_ros"""
+
+    def __init__(self, config: GroupCoherenceForceConfig, peds: PedState):
+        self.peds = peds
+        self.config = config
+
+    def __call__(self):
+        forces = np.zeros((self.peds.size(), 2))
+        if not self.peds.has_group():
+            return forces
+
+        for group in self.peds.groups:
+            threshold = (len(group) - 1) / 2
+            member_pos = self.peds.pos()[group, :]
+            if len(member_pos) == 0:
+                continue
+
+            com = stateutils.centroid(member_pos)
+            force_vec = com - member_pos
+            norms = stateutils.speeds(force_vec)
+            softened_factor = (np.tanh(norms - threshold) + 1) / 2
+            forces[group, :] += (force_vec.T * softened_factor).T
+        return forces * self.config.factor
+
+
+class GroupRepulsiveForce:
+    """Group repulsive force"""
+
+    def __init__(self, config: GroupReplusiveForceConfig, peds: PedState):
+        self.config = config
+        self.peds = peds
+
+    def __call__(self):
+        threshold = self.config.threshold
+        forces = np.zeros((self.peds.size(), 2))
+        if not self.peds.has_group():
+            return forces
+
+        for group in self.peds.groups:
+            if not group:
+                continue
+
+            size = len(group)
+            member_pos = self.peds.pos()[group, :]
+            diff = stateutils.each_diff(member_pos)  # others - self
+            _, norms = stateutils.normalize(diff)
+            diff[norms > threshold, :] = 0
+            forces[group, :] += np.sum(diff.reshape((size, -1, 2)), axis=1)
+
+        return forces * self.config.factor
+
+
+class GroupGazeForceAlt:
+    """Group gaze force"""
+
+    def __init__(self, config: GroupGazeForceConfig, peds: PedState):
+        self.config = config
+        self.peds = peds
+
+    def __call__(self):
+        forces = np.zeros((self.peds.size(), 2))
+
+        if not self.peds.has_group():
+            return forces
+
+        ped_positions = self.peds.pos()
+        directions, dist = stateutils.desired_directions(self.peds.state)
+
+        for group in self.peds.groups:
+            group_size = len(group)
+            if group_size <= 1:
+                continue
+            forces[group, :] = group_gaze_force(
+                ped_positions[group, :], directions[group, :], dist[group])
+
+        return forces * self.config.factor
+
+
+@njit(fastmath=True)
+def group_gaze_force(
+        member_pos: np.ndarray, member_directions: np.ndarray,
+        member_dist: np.ndarray) -> np.ndarray:
+    group_size = member_pos.shape[0]
+    out_forces = np.zeros((group_size, 2))
+    for i in range(group_size):
+        # use center of mass without the current agent
+        other_member_pos = member_pos[np.arange(group_size) != i, :2]
+        mass_center_without_ped = stateutils.centroid(other_member_pos)
+        relative_com_x = mass_center_without_ped[0] - member_pos[i, 0]
+        relative_com_y = mass_center_without_ped[1] - member_pos[i, 1]
+        com_dir, com_dist = norm_vec((relative_com_x, relative_com_y))
+        # angle between walking direction and center of mass
+        ped_dir_x, ped_dir_y = member_directions[i]
+        element_prod = ped_dir_x * com_dir[0] + ped_dir_y * com_dir[1]
+        factor = com_dist * element_prod / member_dist[i]
+        force_x, force_y = ped_dir_x * factor, ped_dir_y * factor
+        out_forces[i, 0] = force_x
+        out_forces[i, 1] = force_y
+    return out_forces

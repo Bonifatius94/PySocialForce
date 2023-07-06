@@ -18,6 +18,7 @@ from pysocialforce import forces
 
 
 Line2D = Tuple[float, float, float, float]
+SimState = Tuple[np.ndarray, List[List[int]]]
 
 
 def make_forces(sim: pysf.Simulator, config: pysf.utils.SimulatorConfig) -> List[pysf.forces.Force]:
@@ -41,8 +42,10 @@ class Simulator:
                  groups: List[List[int]]=None,
                  obstacles: List[Line2D]=None,
                  config: SimulatorConfig=SimulatorConfig(),
-                 make_forces: Callable[[Simulator, SimulatorConfig], List[forces.Force]]=make_forces):
+                 make_forces: Callable[[Simulator, SimulatorConfig], List[forces.Force]]=make_forces,
+                 on_step: Callable[[SimState], None] = lambda s: None):
         self.config = config
+        self.on_step = on_step
         resolution = self.config.scene_config.resolution
         self.env = EnvState(obstacles, resolution)
         self.peds = PedState(state, groups, self.config.scene_config)
@@ -50,10 +53,10 @@ class Simulator:
 
     def compute_forces(self):
         """compute forces"""
-        return sum(map(lambda x: x(), self.forces))
+        return sum(map(lambda force: force(), self.forces))
 
     @property
-    def current_state(self) -> Tuple[np.ndarray, List[List[int]]]:
+    def current_state(self) -> SimState:
         return self.peds.state, self.peds.groups
 
     def get_states(self):
@@ -81,4 +84,5 @@ class Simulator:
         """Step n time"""
         for _ in range(n):
             self.step_once()
+            self.on_step(self.current_state)
         return self
