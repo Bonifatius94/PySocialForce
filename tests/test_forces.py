@@ -5,7 +5,7 @@ from pysocialforce.config import SimulatorConfig
 from pysocialforce.ped_grouping import PedestrianStates, PedestrianGroupings
 from pysocialforce.map_config import MapDefinition
 from pysocialforce import forces
-from pysocialforce import Simulator
+from pysocialforce import Simulator_v2 as Simulator
 
 
 @pytest.fixture()

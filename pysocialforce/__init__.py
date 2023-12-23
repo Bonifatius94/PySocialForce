@@ -3,5 +3,5 @@
 __version__ = "1.1.2"
 
 from .logging import *
-from .simulator import Simulator
+from .simulator import Simulator, Simulator_v2
 from .forces import *
