@@ -1,7 +1,6 @@
 """Config"""
-from dataclasses import dataclass, fields
+from dataclasses import dataclass
 from pysocialforce.ped_population import PedSpawnConfig
-import toml
 
 
 @dataclass
@@ -55,22 +54,6 @@ class ObstacleForceConfig:
     threshold: float = -0.57
 
 
-# class DCUnpack:
-#     """Helper class to initialize dataclass instances from a dictionary.
-#     See https://stackoverflow.com/questions/68417319/initialize-python-dataclass-from-dictionary"""
-#     class_field_cache = {}
-
-#     @classmethod
-#     def new(cls, class_to_instantiate, arg_dict):
-#         if class_to_instantiate not in cls.class_field_cache:
-#             cls.class_field_cache[class_to_instantiate] = \
-#                 {f.name for f in fields(class_to_instantiate) if f.init}
-
-#         field_set = cls.class_field_cache[class_to_instantiate]
-#         filtered_arg_dict = {k : v for k, v in arg_dict.items() if k in field_set}
-#         return class_to_instantiate(**filtered_arg_dict)
-
-
 @dataclass
 class SimulatorConfig:
     scene_config: SceneConfig = SceneConfig()
@@ -81,22 +64,3 @@ class SimulatorConfig:
     social_force_config: SocialForceConfig = SocialForceConfig()
     obstacle_force_config: ObstacleForceConfig = ObstacleForceConfig()
     ped_spawn_config: PedSpawnConfig = PedSpawnConfig()
-
-    # def load_from_toml_file(self, config_file: str):
-    #     data = toml.load(config_file)
-    #     if 'scene' in data:
-    #         self.scene_config = DCUnpack.new(SceneConfig, data['scene'])
-    #     if 'group_coherence_force' in data:
-    #         self.group_coherence_force_config = DCUnpack.new(GroupCoherenceForceConfig, data['group_coherence_force'])
-    #     if 'group_repulsive_force' in data:
-    #         self.group_repulsive_force_config = DCUnpack.new(GroupReplusiveForceConfig, data['group_repulsive_force'])
-    #     if 'group_gaze_force' in data:
-    #         self.group_gaze_force_config = DCUnpack.new(GroupGazeForceConfig, data['group_gaze_force'])
-    #     if 'desired_force' in data:
-    #         self.desired_force_config = DCUnpack.new(DesiredForceConfig, data['desired_force'])
-    #     if 'social_force' in data:
-    #         self.social_force_config = DCUnpack.new(SocialForceConfig, data['social_force'])
-    #     if 'obstacle_force' in data:
-    #         self.obstacle_force_config = DCUnpack.new(ObstacleForceConfig, data['obstacle_force'])
-    #     if 'ped_spawn_config' in data:
-    #         self.obstacle_force_config = DCUnpack.new(PedSpawnConfig, data['ped_spawn_config'])

@@ -27,7 +27,7 @@ SimPopulator = Callable[[SimulatorConfig, MapDefinition],
                         Tuple[PedestrianStates, PedestrianGroupings, List[PedestrianBehavior]]]
 
 
-def make_forces(sim: pysf.Simulator, config: pysf.utils.SimulatorConfig) -> List[pysf.forces.Force]:
+def make_forces(sim: pysf.Simulator, config: SimulatorConfig) -> List[pysf.forces.Force]:
     """Initialize forces required for simulation."""
     enable_group = config.scene_config.enable_group
     force_list = [

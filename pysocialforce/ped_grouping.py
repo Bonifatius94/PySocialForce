@@ -1,4 +1,4 @@
-from typing import List, Set, Dict, Tuple, Callable
+from typing import List, Set, Dict, Tuple
 from dataclasses import dataclass, field
 from copy import deepcopy
 
