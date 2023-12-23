@@ -7,7 +7,7 @@ from dataclasses import dataclass, field
 
 import numpy as np
 
-from pysocialforce.utils import stateutils
+from pysocialforce import stateutils
 from pysocialforce.utils.config import SceneConfig
 
 

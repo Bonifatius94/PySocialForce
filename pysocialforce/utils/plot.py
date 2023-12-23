@@ -17,7 +17,7 @@ except ImportError:
     mpl_animation = None
 
 from .logging import logger
-from .stateutils import minmax
+from ..stateutils import minmax
 
 PedsState = np.ndarray
 GroupsState = List[List[int]]

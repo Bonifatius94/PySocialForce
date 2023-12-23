@@ -7,10 +7,12 @@ import numpy as np
 from numba import njit
 
 import logging
+
+from pysocialforce import stateutils
 logging.getLogger('numba').setLevel(logging.WARNING)
 
 from pysocialforce.scene import Line2D, Point2D, PedState
-from pysocialforce.utils import stateutils, logger
+from pysocialforce.utils import logger
 from pysocialforce.utils.config import \
     DesiredForceConfig, SocialForceConfig, ObstacleForceConfig, \
     GroupCoherenceForceConfig, GroupGazeForceConfig, GroupReplusiveForceConfig
