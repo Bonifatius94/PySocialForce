@@ -14,7 +14,7 @@ import pysocialforce as pysf
 from pysocialforce.map_config import MapDefinition
 from pysocialforce.ped_behavior import PedestrianBehavior
 from pysocialforce.ped_grouping import PedestrianStates, PedestrianGroupings
-from pysocialforce.utils.config import SimulatorConfig
+from pysocialforce.config import SimulatorConfig
 from pysocialforce.scene import PedState, EnvState
 from pysocialforce import forces
 from pysocialforce.ped_population import populate_simulation

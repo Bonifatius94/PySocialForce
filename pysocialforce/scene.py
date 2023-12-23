@@ -8,7 +8,7 @@ from dataclasses import dataclass, field
 import numpy as np
 
 from pysocialforce import stateutils
-from pysocialforce.utils.config import SceneConfig
+from pysocialforce.config import SceneConfig
 
 
 Line2D = Tuple[float, float, float, float]

@@ -12,8 +12,8 @@ from pysocialforce import stateutils
 logging.getLogger('numba').setLevel(logging.WARNING)
 
 from pysocialforce.scene import Line2D, Point2D, PedState
-from pysocialforce.utils import logger
-from pysocialforce.utils.config import \
+from pysocialforce import logger
+from pysocialforce.config import \
     DesiredForceConfig, SocialForceConfig, ObstacleForceConfig, \
     GroupCoherenceForceConfig, GroupGazeForceConfig, GroupReplusiveForceConfig
 

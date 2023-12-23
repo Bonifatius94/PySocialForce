@@ -1,7 +1,7 @@
 import numpy as np
 import pytest
 
-from pysocialforce.utils.config import SimulatorConfig
+from pysocialforce.config import SimulatorConfig
 from pysocialforce.ped_grouping import PedestrianStates, PedestrianGroupings
 from pysocialforce.map_config import MapDefinition
 from pysocialforce import forces

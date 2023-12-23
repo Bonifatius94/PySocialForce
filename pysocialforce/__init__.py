@@ -2,6 +2,6 @@
 
 __version__ = "1.1.2"
 
+from .logging import *
 from .simulator import Simulator
 from .forces import *
-from .utils import plot
