@@ -79,6 +79,12 @@ class Simulator_v2:
     def raw_obstacles(self):
         return self.env.obstacles_raw
 
+    def get_obstacles(self):
+        return self.env.obstacles
+
+    def get_raw_obstacles(self):
+        return self.env.obstacles_raw
+
     def _step_once(self):
         """step once"""
         forces = sum(map(lambda force: force(), self.forces))
