@@ -11,6 +11,16 @@ Zone = Tuple[Vec2D, Vec2D, Vec2D] # rect ABC with sides |A B|, |B C| and diagona
 
 
 def sample_zone(zone: Zone, num_samples: int) -> List[Vec2D]:
+    """
+    Sample points within a given zone.
+
+    Args:
+        zone (Zone): The zone defined by three points.
+        num_samples (int): The number of points to sample.
+
+    Returns:
+        List[Vec2D]: A list of sampled points within the zone.
+    """
     a, b, c = zone
     a, b, c = np.array(a), np.array(b), np.array(c)
     vec_ba, vec_bc = a - b, c - b
@@ -22,6 +32,15 @@ def sample_zone(zone: Zone, num_samples: int) -> List[Vec2D]:
 
 @dataclass
 class Obstacle:
+    """
+    Represents an obstacle in the map.
+
+    Attributes:
+        vertices (List[Vec2D]): The vertices of the obstacle.
+        lines (List[Line2D]): The lines formed by connecting the vertices.
+        vertices_np (np.ndarray): The vertices as a NumPy array.
+    """
+
     vertices: List[Vec2D]
     lines: List[Line2D] = field(init=False)
     vertices_np: np.ndarray = field(init=False)
@@ -43,6 +62,16 @@ class Obstacle:
 
 @dataclass
 class GlobalRoute:
+    """
+    Represents a global route from a spawn point to a goal point in a map.
+
+    Attributes:
+        spawn_id (int): The ID of the spawn point.
+        goal_id (int): The ID of the goal point.
+        waypoints (List[Vec2D]): The list of waypoints along the route.
+        spawn_zone (Rect): The rectangular spawn zone.
+        goal_zone (Rect): The rectangular goal zone.
+    """
     spawn_id: int
     goal_id: int
     waypoints: List[Vec2D]
@@ -50,6 +79,14 @@ class GlobalRoute:
     goal_zone: Rect
 
     def __post_init__(self):
+        """
+        Initializes the GlobalRoute object.
+
+        Raises:
+            ValueError: If spawn_id is less than 0.
+            ValueError: If goal_id is less than 0.
+            ValueError: If the route contains no waypoints.
+        """
         if self.spawn_id < 0:
             raise ValueError('Spawn id needs to be an integer >= 0!')
         if self.goal_id < 0:
@@ -59,14 +96,32 @@ class GlobalRoute:
 
     @property
     def sections(self) -> List[Tuple[Vec2D, Vec2D]]:
+        """
+        Returns a list of sections along the route.
+
+        Returns:
+            List[Tuple[Vec2D, Vec2D]]: The list of sections, where each section is represented by a tuple of two waypoints.
+        """
         return [] if len(self.waypoints) < 2 else list(zip(self.waypoints[:-1], self.waypoints[1:]))
 
     @property
     def section_lengths(self) -> List[float]:
+        """
+        Returns a list of lengths of each section along the route.
+
+        Returns:
+            List[float]: The list of section lengths.
+        """
         return [dist(p1, p2) for p1, p2 in self.sections]
 
     @property
     def section_offsets(self) -> List[float]:
+        """
+        Returns a list of offsets for each section along the route.
+
+        Returns:
+            List[float]: The list of section offsets.
+        """
         lengths = self.section_lengths
         offsets = []
         temp_offset = 0.0
@@ -77,11 +132,25 @@ class GlobalRoute:
 
     @property
     def total_length(self) -> float:
+        """
+        Returns the total length of the route.
+
+        Returns:
+            float: The total length of the route.
+        """
         return 0 if len(self.waypoints) < 2 else sum(self.section_lengths)
 
 
 @dataclass
 class MapDefinition:
+    """
+    Represents the definition of a map.
+
+    Attributes:
+        obstacles (List[Obstacle]): A list of obstacles in the map.
+        routes (List[GlobalRoute]): A list of global routes in the map.
+        crowded_zones (List[Zone]): A list of crowded zones in the map.
+    """
     obstacles: List[Obstacle]
     routes: List[GlobalRoute]
     crowded_zones: List[Zone]
