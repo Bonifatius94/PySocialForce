@@ -33,6 +33,10 @@ class PedestrianStates:
     @property
     def ped_positions(self) -> np.ndarray:
         return self.raw_states[:, 0:2]
+    
+    @property
+    def ped_velocities(self) -> np.ndarray:
+        return self.raw_states[:, 2:4]
 
     def redirect(self, ped_id: int, new_goal: Vec2D):
         self.raw_states[ped_id, 4:6] = new_goal
