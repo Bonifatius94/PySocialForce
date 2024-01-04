@@ -40,8 +40,7 @@ class PedSpawnConfig:
             self.group_member_probs = [p / sum(power_dist) for p in power_dist]
 
 
-
-def sample_route(
+def sample_group_spawn_on_route(
         route: GlobalRoute, num_samples: int,
         sidewalk_width: float) -> Tuple[List[Vec2D], int]:
     """
@@ -58,12 +57,15 @@ def sample_route(
     
     sampled_offset = np.random.uniform(0, route.total_length)
     sec_id = next(iter([i - 1 for i, o in enumerate(route.section_offsets) if o >= sampled_offset]), -1)
+    sec_offset = sampled_offset - route.section_offsets[sec_id]
+    sec_len = route.section_lengths[sec_id]
 
     start, end = route.sections[sec_id]
     add_vecs = lambda v1, v2: (v1[0] + v2[0], v1[1] + v2[1])
     sub_vecs = lambda v1, v2: (v1[0] - v2[0], v1[1] - v2[1])
+    scale_vec = lambda v, f: (v[0] * f, v[1] * f)
     clip_spread = lambda v: np.clip(v, -sidewalk_width / 2, sidewalk_width / 2)
-    center = add_vecs(start, sub_vecs(end, start))
+    center = add_vecs(start, scale_vec(sub_vecs(end, start), sec_offset / sec_len))
     std_dev = sidewalk_width / 4
 
     x_offsets = clip_spread(np.random.normal(center[0], std_dev, (num_samples, 1)))
@@ -127,7 +129,7 @@ class RoutePointsGenerator:
 
     def generate(self, num_samples: int) -> Tuple[List[Vec2D], int, int]:
         route_id = np.random.choice(len(self.routes), size=1, p=self._zone_probs)[0]
-        spawn_pos, sec_id = sample_route(self.routes[route_id], num_samples, self.sidewalk_width)
+        spawn_pos, sec_id = sample_group_spawn_on_route(self.routes[route_id], num_samples, self.sidewalk_width)
         return spawn_pos, route_id, sec_id
 
 
