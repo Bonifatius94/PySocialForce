@@ -23,6 +23,8 @@ crowded_zones = []
 for crowded_zone in map_json['crowded_zone']:
     crowded_zones.append(tuple(crowded_zone))
 
+# TODO field of view must be adapted to the map dimensions or the map dimensions must be added as a transparent obstacle sourrounding the map.
+
 # ================== #
 
 map_def = pysf.map_config.MapDefinition(
