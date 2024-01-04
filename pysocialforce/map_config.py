@@ -6,6 +6,7 @@ import numpy as np
 
 Vec2D = Tuple[float, float]
 Line2D = Tuple[float, float, float, float]
+Circle = Tuple[Vec2D, float]
 Rect = Tuple[Vec2D, Vec2D, Vec2D]
 Zone = Tuple[Vec2D, Vec2D, Vec2D] # rect ABC with sides |A B|, |B C| and diagonal |A C|
 
@@ -27,6 +28,25 @@ def sample_zone(zone: Zone, num_samples: int) -> List[Vec2D]:
     rel_width = np.random.uniform(0, 1, (num_samples, 1))
     rel_height = np.random.uniform(0, 1, (num_samples, 1))
     points = b + rel_width * vec_ba + rel_height * vec_bc
+    return [(x, y) for x, y in points]
+
+
+def sample_circle(circle: Circle, num_samples: int) -> List[Vec2D]:
+    """
+    Sample points within a given circle.
+
+    Args:
+        circle (Circle): The circle defined by center point and radius.
+        num_samples (int): The number of points to sample.
+
+    Returns:
+        List[Vec2D]: A list of sampled points within the zone.
+    """
+    center, radius = circle
+    rot = np.random.uniform(0, np.pi*2, (num_samples, 1))
+    radius = np.random.uniform(0, radius, (num_samples, 1))
+    rel_x, rel_y = np.cos(rot) * radius, np.sin(rot) * radius
+    points = np.concatenate((rel_x, rel_y), axis=1) + np.array([center])
     return [(x, y) for x, y in points]
 
 
@@ -64,35 +84,31 @@ class Obstacle:
 class GlobalRoute:
     """
     Represents a global route from a spawn point to a goal point in a map.
-
-    Attributes:
-        spawn_id (int): The ID of the spawn point.
-        goal_id (int): The ID of the goal point.
-        waypoints (List[Vec2D]): The list of waypoints along the route.
-        spawn_zone (Rect): The rectangular spawn zone.
-        goal_zone (Rect): The rectangular goal zone.
     """
-    spawn_id: int
-    goal_id: int
     waypoints: List[Vec2D]
-    spawn_zone: Rect
-    goal_zone: Rect
+    spawn_radius: float = 5.0
 
     def __post_init__(self):
         """
         Initializes the GlobalRoute object.
 
         Raises:
-            ValueError: If spawn_id is less than 0.
-            ValueError: If goal_id is less than 0.
+
             ValueError: If the route contains no waypoints.
         """
-        if self.spawn_id < 0:
-            raise ValueError('Spawn id needs to be an integer >= 0!')
-        if self.goal_id < 0:
-            raise ValueError('Goal id needs to be an integer >= 0!')
+        
         if len(self.waypoints) < 1:
-            raise ValueError(f'Route {self.spawn_id} -> {self.goal_id} contains no waypoints!')
+            raise ValueError(f'Route contains no waypoints!')
+
+    @property
+    def spawn_circle(self) -> Circle:
+        """
+        Returns the spawn circle of the route.
+
+        Returns:
+            Circle: The spawn circle of the route.
+        """
+        return (self.waypoints[0], self.spawn_radius)
 
     @property
     def sections(self) -> List[Tuple[Vec2D, Vec2D]]:

@@ -2,7 +2,7 @@ from math import dist
 from typing import List, Dict, Tuple, Protocol
 from dataclasses import dataclass, field
 
-from pysocialforce.map_config import GlobalRoute, sample_zone
+from pysocialforce.map_config import GlobalRoute, sample_circle, sample_zone
 from pysocialforce.navigation import RouteNavigator
 from pysocialforce.ped_grouping import PedestrianGroupings
 
@@ -123,8 +123,8 @@ class FollowRouteBehavior:
         """
         nav = self.navigators[gid]
         num_peds = self.groups.group_size(gid)
-        spawn_zone = self.route_assignments[gid].spawn_zone
-        spawn_positions = sample_zone(spawn_zone, num_peds)
+        circle = self.route_assignments[gid].spawn_circle
+        spawn_positions = sample_circle(circle, num_peds)
         self.groups.reposition_group(gid, spawn_positions)
         self.groups.redirect_group(gid, nav.waypoints[0])
         nav.waypoint_id = 0
