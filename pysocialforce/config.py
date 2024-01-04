@@ -7,7 +7,7 @@ from pysocialforce.ped_population import PedSpawnConfig
 class SceneConfig:
     enable_group: bool = True
     agent_radius: float = 0.35
-    step_width: float = 1.0
+    dt_secs: float = 0.1
     max_speed_multiplier: float = 1.3
     tau: float = 0.5
     resolution: float = 10

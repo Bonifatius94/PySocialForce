@@ -21,7 +21,7 @@ class PedState:
 
     def __init__(self, state: np.ndarray, groups: List[Group], config: SceneConfig):
         self.default_tau = config.tau
-        self.step_width = config.step_width
+        self.d_t = config.dt_secs
         self.agent_radius = config.agent_radius
         self.max_speed_multiplier = config.max_speed_multiplier
 
@@ -76,14 +76,14 @@ class PedState:
     def step(self, force, groups=None):
         """Move peds according to forces"""
         # desired velocity
-        desired_velocity = self.vel() + self.step_width * force
+        desired_velocity = self.vel() + self.d_t * force
         desired_velocity = self.capped_velocity(desired_velocity, self.max_speeds)
         # stop when arrived
         desired_velocity[stateutils.desired_directions(self.state)[1] < 0.5] = [0, 0]
 
         # update state
         next_state = self.state
-        next_state[:, 0:2] += desired_velocity * self.step_width
+        next_state[:, 0:2] += desired_velocity * self.d_t
         next_state[:, 2:4] = desired_velocity
         next_groups = groups if groups is not None else self.groups
         self.update(next_state, next_groups)
