@@ -7,7 +7,7 @@ This Project is based on [PySocialForce](https://github.com/yuxiang-gao/PySocial
 from source:
 
 ```sh
-git clone <this repo>
+git clone <this repo-URL>
 cd <this repo>
 pip install -r requirements.txt
 pip install -e .
