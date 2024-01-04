@@ -1,0 +1,36 @@
+{
+    "map_name": "default_map",
+    "map_size":[{
+        "x_margin":[-100, 100],
+        "y_margin":[-200, 200]
+    }],
+    "ped_routes": 
+        [{
+            "route_name": "route_1",
+            "waypoints": [
+                [0, 0],
+                [0, 100],
+                [100, 100],
+                [100, 0],
+                [0, 0]
+            ],
+            "reversible": "true"
+        }],
+    "crowded_zone":[
+        [
+            [40, -40],
+            [40, -20],
+            [60, -20]
+        ]
+    ],
+    "obstacles":
+        [
+            [
+                [20, 20],
+                [20, 40],
+                [40, 40],
+                [40, 20]
+            ]
+        ]
+    
+}
