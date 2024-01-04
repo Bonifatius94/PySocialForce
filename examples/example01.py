@@ -1,11 +1,13 @@
 """
 # Example 01: basic import test
 """
-import pysocialforce as psf
+import pysocialforce as pysf
 
 
-simulator = psf.Simulator_v2()
+simulator = pysf.Simulator_v2()
 
 for step in range(10):
     simulator.step()
-    print(simulator)
+    print(f"step {step}")
+    print(simulator.states.ped_positions)
+    print("=================")
