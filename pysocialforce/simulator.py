@@ -74,7 +74,7 @@ class Simulator_v2:
         self.env = EnvState(obstacles, self.config.scene_config.resolution)
         self.peds = PedState(
             self.states.raw_states,
-            self.groupings.groups,
+            self.groupings.groups_as_lists,
             self.config.scene_config)
         self.forces = make_forces(self, config)
 
