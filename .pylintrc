@@ -9,6 +9,9 @@ good-names=n,B,ax,b,e,f,f_aB,F0,F_ab,F_aB,F,grad_r_aB,i,n,nx,ny,xy,r,r_aB,U,u0,V
 # be loaded. Extensions are loading into the active Python interpreter and may
 # run arbitrary code
 extension-pkg-whitelist=numpy
+fail-under=9.0
+min-similarity-lines=10
+ignored-modules=pygame
 
 [TYPECHECK]
 
