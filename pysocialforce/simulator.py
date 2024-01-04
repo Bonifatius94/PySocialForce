@@ -46,15 +46,16 @@ def make_forces(sim: pysf.Simulator, config: SimulatorConfig) -> List[pysf.force
 
 
 class Simulator_v2:
-    def __init__(self,
-                 map_definition: MapDefinition=EMPTY_MAP,
-                 config: SimulatorConfig=SimulatorConfig(),
-                 make_forces: Callable[[Simulator, SimulatorConfig], List[forces.Force]]=make_forces,
-                 populate: SimPopulator=lambda s, m: \
-                    populate_simulation(
-                        s.scene_config.tau, s.ped_spawn_config,
-                        m.routes, m.crowded_zones),
-                 on_step: Callable[[SimState], None] = lambda s: None):
+    def __init__(
+            self,
+            map_definition: MapDefinition=EMPTY_MAP,
+            config: SimulatorConfig=SimulatorConfig(),
+            make_forces: Callable[[Simulator, SimulatorConfig], List[forces.Force]]=make_forces,
+            populate: SimPopulator=lambda s, m: \
+            populate_simulation(
+                s.scene_config.tau, s.ped_spawn_config,
+                m.routes, m.crowded_zones),
+            on_step: Callable[[SimState], None] = lambda s: None):
         """
         Initializes a Simulator_v2 object.
 
