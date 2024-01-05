@@ -1,6 +1,6 @@
 # PySocialForce
 
-This Project is based on [PySocialForce](https://github.com/yuxiang-gao/PySocialForce).
+This Project is based on [yuxiang-gao/PySocialForce](https://github.com/yuxiang-gao/PySocialForce).
 
 ## Installation
 
@@ -13,7 +13,7 @@ pip install -r requirements.txt
 pip install -e .
 ```
 
-`pip install -e .` will install the package in editable mode, so that you can modify the source code and import the package in python. It is additionally recommended to use a `virtualenv` to install the package.
+`pip install -e .` will install the package in editable mode, so that you can modify the source code and import the package in Python. It is additionally recommended to use a `virtualenv` to install the package.
 
 ## Examples
 
@@ -25,6 +25,7 @@ Examples can be found in the examples folder.
 pytest tests/*.py
 ```
 
-## History
+## Acknowledgments
 
-The old version of the README.md can be found in [README_old.md](README_old.md).
+- All acknowledgments can be found in [docs/acknowledgments.md](docs/acknowledgments.md).
+- The old version of the README.md can be found in [README_old.md](docs/README_old.md).

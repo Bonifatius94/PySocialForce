@@ -1,5 +1,7 @@
 # PySocialForce
 
+> DEPRECATED: This README is deprecated and comes from [yuxiang-gao/PySocialForce](https://github.com/yuxiang-gao/PySocialForce).
+
 master: [![Build Status](https://travis-ci.com/yuxiang-gao/PySocialForce.svg?branch=master)](https://travis-ci.com/yuxiang-gao/PySocialForce)
 dev: [![Build Status](https://travis-ci.com/yuxiang-gao/PySocialForce.svg?branch=dev)](https://travis-ci.com/yuxiang-gao/PySocialForce)
 
@@ -7,21 +9,20 @@ A Python Implementation of the Extended Social Force Model for Pedestrian Dynami
 
 ## Table of Contents
 
-- [PySocialForce](#pysocialforce)
-  - [Table of Contents](#table-of-contents)
-  - [About The Project](#about-the-project)
-    - [Roadmap](#roadmap)
-  - [Installation](#installation)
-  - [Usage](#usage)
-  - [Configuration](#configuration)
-  - [Examples](#examples)
-    - [Ped-ped Scenarios](#ped-ped-scenarios)
-    - [Environmental obstacles](#environmental-obstacles)
-    - [Groups](#groups)
-  - [Contributing to this project](#contributing-to-this-project)
-  - [License](#license)
-  - [Acknowledgements](#acknowledgements)
-  - [References](#references)
+* [Table of Contents](#table-of-contents)
+* [About The Project](#about-the-project)
+  * [Roadmap](#roadmap)
+* [Installation](#installation)
+* [Usage](#usage)
+* [Configuration](#configuration)
+* [Examples](#examples)
+  * [Ped-ped Scenarios](#ped-ped-scenarios)
+  * [Environmental obstacles](#environmental-obstacles)
+  * [Groups](#groups)
+* [Contributing to this project](#contributing-to-this-project)
+* [License](#license)
+* [Acknowledgements](#acknowledgements)
+* [References](#references)
 
 ## About The Project
 
