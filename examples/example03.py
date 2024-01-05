@@ -4,16 +4,16 @@
 import pysocialforce as pysf
 import numpy as np
 
-obstacle01 = pysf.map_config.Obstacle(
+obstacle01 = pysf.Obstacle(
     [(10, 10), (15,10), (15, 15), (10, 15)])
-obstacle02 = pysf.map_config.Obstacle(
+obstacle02 = pysf.Obstacle(
     [(20, 10), (25,10), (25, 15), (20, 15)])
 
-route01 = pysf.map_config.GlobalRoute(
+route01 = pysf.GlobalRoute(
     [(0, 0), (10, 10), (20, 10), (30, 0)])
 crowded_zone01 = ((10, 10), (20, 10), (20, 20))
 
-map_def = pysf.map_config.MapDefinition(
+map_def = pysf.MapDefinition(
     obstacles=[obstacle01, obstacle02],
     routes=[route01],
     crowded_zones=[crowded_zone01])
@@ -30,7 +30,7 @@ for step in range(10_000):
             np.expand_dims(ped_pos, axis=1),
             np.expand_dims(ped_pos + ped_vel, axis=1)
         ), axis=1)
-    state = pysf.sim_view.VisualizableSimState(step, ped_pos, actions)
+    state = pysf.VisualizableSimState(step, ped_pos, actions)
     sim_view.render(state, fps=10)
 
 sim_view.exit()

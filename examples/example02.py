@@ -3,16 +3,16 @@
 """
 import pysocialforce as pysf
 
-obstacle01 = pysf.map_config.Obstacle(
+obstacle01 = pysf.Obstacle(
     [(10, 10), (15,10), (15, 15), (10, 15)])
-obstacle02 = pysf.map_config.Obstacle(
+obstacle02 = pysf.Obstacle(
     [(20, 10), (25,10), (25, 15), (20, 15)])
 
-route01 = pysf.map_config.GlobalRoute(
+route01 = pysf.GlobalRoute(
     [(0, 0), (10, 10), (20, 10), (30, 0)])
 crowded_zone01 = ((10, 10), (20, 10), (20, 20))
 
-map_def = pysf.map_config.MapDefinition(
+map_def = pysf.MapDefinition(
     obstacles=[obstacle01, obstacle02],
     routes=[route01],
     crowded_zones=[crowded_zone01])
