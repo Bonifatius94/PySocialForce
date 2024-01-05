@@ -1,3 +1,7 @@
+"""
+Example 04: test json map import
+"""
+
 import json
 import pysocialforce as pysf
 from pysocialforce.map_config import Obstacle, GlobalRoute
