@@ -15,3 +15,4 @@ from .sim_view import SimulationView, VisualizableSimState
 from .map_config import \
     Circle, Line2D, Rect, Zone, Vec2D, \
     GlobalRoute, Obstacle, MapDefinition
+from .map_loader import load_map
