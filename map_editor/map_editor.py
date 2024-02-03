@@ -73,7 +73,7 @@ class MapEditorUI:
             for event in events:
                 if event.type == pygame.QUIT:
                     self.is_exit_requested = True
-                if event.type == pygame.MOUSEBUTTONUP:
+                if event.type == pygame.MOUSEBUTTONUP and event.button == 1:
                     pos = pygame.mouse.get_pos()
                     if self.draw_polygon:
                         if self.is_hover_over_start:
@@ -89,6 +89,8 @@ class MapEditorUI:
                             _, _, p3, p4 = rect_of(p1, p2, pos)
                             self.rectangles.append([p1, p2, p3, p4])
                             self.new_outline = []
+                elif event.type == pygame.MOUSEBUTTONUP and event.button == 3:
+                    self.new_outline = []
 
     def _prerender_scale(self) -> pygame.Surface:
         surface = pygame.Surface((self.width, self.height), pygame.SRCALPHA)
