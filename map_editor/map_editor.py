@@ -13,6 +13,7 @@ COLOR_NEW_POINT = (255, 120, 120)
 COLOR_NEW_POINT_HOVER = (60, 120, 180)
 COLOR_BACKGROUND = (255, 255, 255)
 COLOR_POLYGON = (30, 30, 30)
+COLOR_RECT = (120, 30, 30)
 CIRCLE_RADIUS = 5
 SCALE_BACKGROUND_ALPHA = (255, 255, 255, 128)
 SCALE_LINE_ALPHA = (0, 0, 0, 128)
@@ -25,14 +26,15 @@ class MapEditorUI:
     scaling: float = 10
     width: float = 1200
     height: float = 1000
-    draw_polygon: bool = True
-    draw_rectangle: bool = False
+    draw_polygon: bool = False
+    draw_rectangle: bool = True
     new_outline: List[Vec2D] = field(default_factory=list)
     screen: pygame.Surface = field(init=False)
     scaling_bg: pygame.Surface = field(init=False)
     is_exit_requested: bool = False
     ui_events_thread: Thread = field(init=False)
     polygons: List[List[Vec2D]] = field(default_factory=list)
+    rectangles: List[List[Vec2D]] = field(default_factory=list)
 
     def __post_init__(self):
         pygame.init()
@@ -73,11 +75,20 @@ class MapEditorUI:
                     self.is_exit_requested = True
                 if event.type == pygame.MOUSEBUTTONUP:
                     pos = pygame.mouse.get_pos()
-                    if self.is_hover_over_start:
-                        self.polygons.append(self.new_outline)
-                        self.new_outline = []
-                    elif self.is_append_pos_active:
-                        self.new_outline.append(pos)
+                    if self.draw_polygon:
+                        if self.is_hover_over_start:
+                            self.polygons.append(self.new_outline)
+                            self.new_outline = []
+                        else:
+                            self.new_outline.append(pos)
+                    elif self.draw_rectangle:
+                        if len(self.new_outline) < 2:
+                            self.new_outline.append(pos)
+                        else:
+                            p1, p2 = self.new_outline[0], self.new_outline[1]
+                            _, _, p3, p4 = rect_of(p1, p2, pos)
+                            self.rectangles.append([p1, p2, p3, p4])
+                            self.new_outline = []
 
     def _prerender_scale(self) -> pygame.Surface:
         surface = pygame.Surface((self.width, self.height), pygame.SRCALPHA)
@@ -99,7 +110,8 @@ class MapEditorUI:
         sleep(0.01)
 
         if self.is_exit_requested:
-            print(self.polygons)
+            print("polygons:", self.polygons)
+            print("rects:", self.rectangles)
             pygame.quit()
             self.ui_events_thread.join()
             exit()
@@ -110,6 +122,9 @@ class MapEditorUI:
         for poly in self.polygons:
             pygame.draw.polygon(self.screen, COLOR_POLYGON, poly)
 
+        for rect in self.rectangles:
+            pygame.draw.polygon(self.screen, COLOR_RECT, rect)
+
         for p in self.new_outline:
             pygame.draw.circle(self.screen, COLOR_NEW_POINT, p, CIRCLE_RADIUS)
 
@@ -119,7 +134,31 @@ class MapEditorUI:
         for p1, p2 in zip(self.new_outline[:-1], self.new_outline[1:]):
             pygame.draw.line(self.screen, COLOR_NEW_POINT, p1, p2)
 
+        if self.draw_rectangle and len(self.new_outline) == 2:
+            p1, p2 = self.new_outline[0], self.new_outline[1]
+            pos = pygame.mouse.get_pos()
+            _, _, p3, p4 = rect_of(p1, p2, pos)
+            pygame.draw.line(self.screen, COLOR_NEW_POINT, p2, p3)
+            pygame.draw.line(self.screen, COLOR_NEW_POINT, p3, p4)
+            pygame.draw.line(self.screen, COLOR_NEW_POINT, p4, p1)
+
         pygame.display.update()
+
+
+def rect_of(p1: Vec2D, p2: Vec2D, p3: Vec2D) -> Tuple[Vec2D, Vec2D, Vec2D, Vec2D]:
+    # with p1, p2 as base and p3 for orthogonal distance
+    (x1, y1), (x2, y2), (x3, y3) = p1, p2, p3
+    ox, oy = y2 - y1, x1 - x2
+    x4, y4 = x3 + ox, y3 + oy
+
+    num = (x1 - x3) * (y3 - y4) - (y1 - y3) * (x3 - x4)
+    den = (x1 - x2) * (y3 - y4) - (y1 - y2) * (x3 - x4)
+    t = num / den
+    cx, cy = x1 + t * (x2 - x1), y1 + t * (y2 - y1)
+
+    dx, dy = x3 - cx, y3 - cy
+    p3, p4 = (x2 + dx, y2 + dy), (x1 + dx, y1 + dy)
+    return p1, p2, p3, p4
 
 
 def main():
